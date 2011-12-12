@@ -1,0 +1,64 @@
+DESCRIPTION
+
+threshcrypt - A file encryption program using a cryptographic threshold scheme
+
+LICENSE
+
+Simplified BSD License.  See the included 'COPYING' file.
+
+INSTALL
+
+Just run 'make' and copy the binary somewhere.  You can also run 'make static'
+to build a staticly linked version, which will be compressed with UPX if it is
+installed in you $PATH. I haven't yet made any attempts to make this software
+portable - it has been tested only with gcc and glibc on Linux/x86_64.
+
+USAGE
+
+Encrypt:
+threshcrypt -n threshold -m shares input_file [output_file]
+
+Decrypt:
+threshcrypt input_file [output_file]
+
+See main.c for other options until I update this file.
+
+NOTES
+
+* Decryption routines still need to be implemented.
+
+* This is *ALPHA* software. No attempt will be made to maintain file format
+  backwards compatibility until a beta relase.
+
+* Currently, no automatic adjustment is done to the work factor of the KDF
+  to compensate for the number of encrypted shares it needs to be run against.
+  With a large number of shares the default parameters will be rather slow to
+  verify a share password.
+
+    CRYPTO DESIGN
+
+    The chunked file data is stored using CTR+HMAC encrypt-then-mac.
+    I may later add options to GCM / EAX / other authenticated encryption
+    modes, but it's not worth the trouble right now.  Simmilarly, currently the
+    only supported ciphers and hashes are AES and SHA-256 respectively.
+
+    I (ab)use PBKDF2 a bit as a key expansion function.  This is because if you
+    specify a larger than hashlen for PBKDF2's output size and use that key
+    material for anything other than a single large key it can be attacked
+    in parallel.  I'd rather use the HKDF expansion function to generate the
+    subkeys, but I didn't find a library and didn't want to screw it up^W^W^W
+    implement it myself.
+
+    I *ALSO* (ab)use PBKDF2 with a small number of iterations as a replacement
+    for HMAC to verify the master key.  Plain HMAC would probably be fine for
+    that, but I'm paranoid and this is how LUKS does master key verification.
+    This scheme will hopefully add some additional protection in case the hash
+    algorithm used is broken.
+
+TODO
+
+* Option to use scrypt instead of pbkdf2
+* mlock memory regions that will contain key material before using them
+* Add a wipe/free routine for the header_data_t structure
+* Wipe the master key from memory before exiting
+* Do user interaction on /dev/tty so that data can be accepted on stdin

@@ -1,0 +1,8 @@
+*.swp
+*~
+*.o
+*.bin
+*.dat
+tags
+threshcrypt
+threshcrypt_*
