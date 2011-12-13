@@ -14,9 +14,16 @@ threshcrypt_static: $(OBJECTS)
 	strip threshcrypt_static
 	which upx && upx --ultra-brute --best threshcrypt_static
 
+threshcrypt_embed: $(OBJECTS)
+	$(COMPILE) -Os -static $(OBJECTS) -Wl,-Bstatic $(LIBS) -Wl,-Bdynamic -o threshcrypt_embed
+
 static: threshcrypt_static
+
+embed: threshcrypt_embed
+
+extra: threshcrypt threshcrypt_embed threshcrypt_static
 
 all: threshcrypt
 
 clean:
-	rm -f threshcrypt threshcrypt_static *.o
+	rm -f threshcrypt threshcrypt_* *.o
