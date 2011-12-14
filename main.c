@@ -281,9 +281,21 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
           fprintf(stderr, "%s: Error reading header of '%s': bad data\n", progname, in_file);
           break;
       }
-      exit(EXIT_FAILURE);
     }
     /* decrypt stuff here */
+    ssize_t len;
+    //unsigned char blkdat[BUFFER_SIZE];
+    unsigned char blkmac[64];
+    while ((len = read(in_fd, buf, 4)) > 0) {
+      if (len < 4) {
+        fprintf(stderr, "%s: Error: short read of blocklen in '%s'\n", progname, in_file);
+        exit(EXIT_FAILURE);
+      }
+      uint32_t ulen;
+      LOAD32H(ulen, buf);
+
+
+    }
     exit(EXIT_SUCCESS);
   }
 
@@ -334,19 +346,22 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       out_fd = fileno(stdout);
     }
     write_header(&header_data, out_fd);
+    unsigned char *IV = NULL;
     ssize_t len;
     while ((len = read(in_fd, buf, BUFFER_SIZE)) > 0) {
       unsigned char blklen[4];
-      unsigned char blkdat[BUFFER_SIZE];
+//      unsigned char blkdat[BUFFER_SIZE];
       unsigned char blkmac[64];
       uint32_t ulen = len;
 
-      encrypt_data(buf, blkdat, len,
+      /* XXX This isn't secure because the starting IV is the same for each call */
+      encrypt_block(buf, buf, len,
                    header_data.master_key, header_data.key_size,
-                   blkmac, header_data.hmac_size);
+                   blkmac, header_data.hmac_size, IV);
       STORE32H(ulen, blklen);
       write(out_fd, blklen,   4);
-      write(out_fd, blkdat, len);
+      //write(out_fd, blkdat, len);
+      write(out_fd, buf, len);
       write(out_fd, blkmac, header_data.hmac_size);
     }
     return ret;

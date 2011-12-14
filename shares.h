@@ -7,9 +7,6 @@
 #ifndef THRESHCRYPT_SHARES_H_
 #define THRESHCRYPT_SHARES_H_
 
-#define SHARE_KEY  skey_data + (i * key_size)
-#define SHARE_SALT salt_data + (i * salt_size)
-
 int do_gfsplit(header_data_t *);
 int unlock_shares(unsigned char *, size_t, header_data_t *); 
 

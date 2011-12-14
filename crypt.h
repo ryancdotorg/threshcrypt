@@ -7,13 +7,17 @@
 #ifndef THRESHCRYPT_CRYPT_H_
 #define THRESHCRYPT_CRYPT_H_
 
-#define encrypt_data(idat, odat, sz, mk, ks, nh,       hs) \
-          crypt_data(idat, odat, sz, mk, ks, nh, NULL, hs, MODE_ENCRYPT)
-#define decrypt_data(idat, odat, sz, mk, ks,       ch, hs) \
-          crypt_data(idat, odat, sz, mk, ks, NULL, ch, hs, MODE_DECRYPT)
+#define  encrypt_data(idat, odat, sz, mk, ks, nh,       hs) \
+           crypt_data(idat, odat, sz, mk, ks, nh, NULL, hs, NULL, MODE_ENCRYPT)
+#define  decrypt_data(idat, odat, sz, mk, ks,       ch, hs) \
+           crypt_data(idat, odat, sz, mk, ks, NULL, ch, hs, NULL, MODE_DECRYPT)
+#define encrypt_block(idat, odat, sz, mk, ks, nh,       hs, iv) \
+           crypt_data(idat, odat, sz, mk, ks, nh, NULL, hs, &iv, MODE_ENCRYPT)
+#define decrypt_block(idat, odat, sz, mk, ks,       ch, hs, iv) \
+           crypt_data(idat, odat, sz, mk, ks, NULL, ch, hs, &iv, MODE_DECRYPT)
 int crypt_data(const unsigned char *, unsigned char *, size_t,
                const unsigned char *, size_t, unsigned char *,
-               const unsigned char *, size_t, int );
+               const unsigned char *, size_t, unsigned char **, int);
 
 int hmac_vrfymem(int, const unsigned char *, unsigned long,
                       const unsigned char *, unsigned long,

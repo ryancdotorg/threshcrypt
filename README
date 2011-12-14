@@ -37,6 +37,37 @@ NOTES
 
     CRYPTO DESIGN
 
+    Operation overview:
+
+    When encrypting, first the user is prompted to enter passwords for each
+    share.  As each password is confirmed, it is fed to PBKDF2 along with a
+    random 12 byte salt in order to generate a 'share key'.  As soon as the
+    share key has been generated, the password is zeroed in memory.
+
+    Once all the share keys have been generated, a random master key is
+    generated, using the share keys as an additional entropy source (this
+    helps if your RNG/PRNG is poor quality).  The master key is then
+    cryptographicly checksumed and split into a series of shares using
+    Shamir's secret sharing.  Each share is encrypted with the corresponding
+    share key and then zeroed in memory.
+
+    Finally, the plaintext is read in chunks which are then encrypted and MAC'd
+    to prevent the data from being read/tampered with.
+
+
+    For decryption, the user is prompted to enter 'any password' with an
+    indication of how many shares have been unlocked and how many are needed
+    to recover the master key.  For each password, *all* shares are checked in
+    turn and a running total how how many more shares have been been unlocked
+    is kept (multiple shares can have the same password).  Once enough shares
+    have been decrypted, the master key is recovered.  The master key is then
+    tested against the checksum.  If the master key looks good, then the
+    ciphertext chunks will be verified and decrypted.
+
+
+
+    Other notes:
+
     The chunked file data is stored using CTR+HMAC encrypt-then-mac.
     I may later add options to GCM / EAX / other authenticated encryption
     modes, but it's not worth the trouble right now.  Simmilarly, currently the
