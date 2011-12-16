@@ -7,8 +7,9 @@
 #ifndef THRESHCRYPT_SHARES_H_
 #define THRESHCRYPT_SHARES_H_
 
-int do_gfsplit(header_data_t *);
-int unlock_shares(unsigned char *, size_t, header_data_t *); 
+int tc_gfsplit(header_data_t *);
+int tc_gfcombine(header_data_t *);
+int unlock_shares(const unsigned char *, size_t, header_data_t *); 
 
-// vim: ts=2 sw=2 et ai si
-#endif // THRESHCRYPT_SHARES_H_
+/* vim: set ts=2 sw=2 et ai si: */
+#endif /* THRESHCRYPT_SHARES_H_ */

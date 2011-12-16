@@ -21,7 +21,7 @@
 #include "shares.h"
 #include "crypt.h"
 
-int do_gfsplit(header_data_t *header) {
+int tc_gfsplit(header_data_t *header) {
   int err;
   unsigned int i, j;  
   share_data_t *share;
@@ -36,8 +36,8 @@ int do_gfsplit(header_data_t *header) {
   /* master key setup */
   gfshare_fill_rand(header->master_key,  header->key_size);
   gfshare_fill_rand(header->master_salt, SALT_SIZE);
-  // Add (hopefully) some extra protection against potentially weak PRNG
-  // TODO use a hash for this...
+  /* Add (hopefully) some extra protection against potentially weak PRNG
+   * TODO use a hash for this... */
   for (i = 0; i < header->nshares; i++ ) {
     share = &(header->shares[i]);
     memxor(header->master_key, share->key, header->key_size);
@@ -49,6 +49,12 @@ int do_gfsplit(header_data_t *header) {
                     find_hash("sha256"), header->master_hmac, &hmac_size)) != CRYPT_OK) {
     fprintf(stderr, "PBKDF2 failed: %d\n", err);
   }
+
+  fprintf(stderr, "MasterSlt: ");
+  for (i = 0;i < SALT_SIZE;i++) {
+    fprintf(stderr, "%02x", header->master_salt[i]);
+  }
+  fprintf(stderr, "\n");
  
   fprintf(stderr, "MasterKey: ");
   for (i = 0;i < header->key_size;i++) {
@@ -159,10 +165,76 @@ int do_gfsplit(header_data_t *header) {
     fprintf(stderr, "\n\n");
   }
 
-  // wipe sensitive data and free memory;
+  /* wipe sensitive data and free memory */
   gfshare_ctx_free(G);
   safe_free(sharenrs);
   return 0;
 }
 
-// vim: ts=2 sw=2 et ai si
+int unlock_shares(const unsigned char *pass, size_t pass_len, header_data_t *header) {
+  int i, err, ret;
+  ret = 0;
+  for (i = 0; i < header->nshares; i++) {
+    share_data_t *share;
+    share = &(header->shares[i]);
+
+    assert(share->key == NULL);
+    if (share->ptxt == NULL) {
+      share->key  = safe_malloc(header->key_size);
+      share->ptxt = safe_malloc(header->share_size);
+
+      unsigned long key_size;
+      key_size = header->key_size;
+
+      if ((err = pbkdf2(pass, pass_len, share->salt, SALT_SIZE, share->iter,
+                        find_hash("sha256"), share->key, &key_size)) != CRYPT_OK) {
+        /* on an hmac failure (wrong password) */
+        wipe_free(share->key, header->key_size);
+        safe_free(share->ptxt); /* should still be unused */
+        continue;
+      } 
+      if ((err = decrypt_data(share->ctxt, share->ptxt, header->share_size,
+                              share->key,  header->key_size,
+                              share->hmac, header->hmac_size)) == 0) {
+        fprintf(stderr, "Unlocked share %d\n", i);
+        ret++;
+      } else {
+        wipe_free(share->ptxt, header->share_size);
+      }
+      wipe_free(share->key, header->key_size);
+    }
+  }
+  return ret;
+}
+
+
+int tc_gfcombine(header_data_t *header) {
+  int i, loaded, err, ret;
+  gfshare_ctx *G;
+  unsigned char sharenrs[256];
+  memset(sharenrs, 0, sizeof(sharenrs));
+
+  err = ret = loaded = 0;
+  
+  /* Initialize a gfshare context for decoding */
+  G = gfshare_ctx_init_dec(sharenrs, header->thresh, header->key_size);
+
+  assert(header->master_key == NULL);
+
+  for (i = 0; i < header->nshares; i++) {
+    share_data_t *share;
+    share = &(header->shares[i]);
+    if (share->ptxt != NULL) {
+      sharenrs[loaded] = share->ptxt[0];
+      gfshare_ctx_dec_newshares(G, sharenrs);
+      gfshare_ctx_dec_giveshare(G, loaded, share->ptxt + 1);
+      if (++loaded == header->thresh)
+        break;
+    }
+  }
+  header->master_key = safe_malloc(header->key_size);
+  gfshare_ctx_dec_extract(G, header->master_key);
+  return ret;
+}
+
+/* vim: set ts=2 sw=2 et ai si: */

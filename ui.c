@@ -45,7 +45,7 @@ int get_pass(char *pass, uint8_t pass_size, const char *prompt,
     }
     new_term = old_term;
     fprintf(stderr, "%s", prompt);
-    // Turn off echo
+    /* Turn off echo */
     new_term.c_lflag &= ~ECHO;
     if (load_term(&new_term) != 0) {
       return -1;
@@ -57,7 +57,7 @@ int get_pass(char *pass, uint8_t pass_size, const char *prompt,
       if (chr >= 32 && chr <= 126) {
         pass[i] = chr;
         i++;
-      } else if (chr == '\b' && i > 0) { // backspace
+      } else if (chr == '\b' && i > 0) { /* backspace */
         pass[i] = '\0';
         i--;
       } else if (chr == '\n') {
@@ -65,12 +65,12 @@ int get_pass(char *pass, uint8_t pass_size, const char *prompt,
         break;
       }
     }
-    // restore echo
+    /* restore echo */
     if (load_term(&old_term) != 0) {
       return -1;
     }
     if (vprompt != NULL) {
-      fprintf(stderr, "\033[%zdD\033[2K", strlen(prompt));
+      fprintf(stderr, "\033[%dD\033[2K", (unsigned int)strlen(prompt));
       j = get_pass(vpass, pass_size, vprompt, NULL, NULL, 0);
       if (j != i || memcmp(pass, vpass, i) != 0) {
         memset(vpass, 0, sizeof(vpass));
@@ -94,4 +94,4 @@ int get_pass(char *pass, uint8_t pass_size, const char *prompt,
   fprintf(stderr, "\n");
   return i;
 }
-// vim: ts=2 sw=2 et ai si
+/* vim: set ts=2 sw=2 et ai si: */

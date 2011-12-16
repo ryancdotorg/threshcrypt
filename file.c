@@ -115,4 +115,4 @@ int write_header(header_data_t *header, int fd) {
   return 0;
 }
 
-// vim: ts=2 sw=2 et ai si
+/* vim: set ts=2 sw=2 et ai si: */

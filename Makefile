@@ -1,7 +1,7 @@
 HEADERS = main.h ui.h shares.h cyrpt.h util.h file.h common.h
 OBJECTS = main.o ui.o shares.o crypt.o util.o file.o
 LIBS = -lgfshare -ltomcrypt
-COMPILE = gcc $(CFLAGS) -g -Wall -Wextra -Wno-pointer-sign
+COMPILE = gcc $(CFLAGS) -g -pedantic -std=gnu99 -Wall -Wextra -funsigned-char -Wno-pointer-sign
 
 .c.o:
 	$(COMPILE) -c $< -o $@

@@ -39,7 +39,7 @@ void sigint_handle(int sig) {
   exit(0);
 }
 
-// Calculate the number of iterations needed to take a given amount of time 
+/* Calculate the number of iterations needed to take a given amount of time */
 static int pbkdf2_itertime(int hash_idx, size_t size, int msec) {
   struct timeval time1;
   struct timeval time2;
@@ -48,23 +48,23 @@ static int pbkdf2_itertime(int hash_idx, size_t size, int msec) {
   unsigned char *pass = "...and your father smelt of elderberries!";
   unsigned char *buf  = safe_malloc(size);
 
-  int iter = 1617; // this number is of no significance
-  float duration = 0; // seconds
-  float spi; // seconds per iter
+  int iter = 1617; /* this number is of no significance */
+  float duration = 0; /* seconds */
+  float spi; /* seconds per iter */
 
-  // loop until we find a value for iter that takes at least 0.10 seconds
-  while (duration < 0.10) { // minimum time 
+  /* loop until we find a value for iter that takes at least 0.10 seconds */
+  while (duration < 0.10) { /* minimum time */
     gettimeofday(&time1, NULL);
     pbkdf2(pass, strlen(pass), salt, strlen(salt), iter, hash_idx, buf, &size);
     gettimeofday(&time2, NULL);
     duration = (time2.tv_sec - time1.tv_sec) + (float)(time2.tv_usec - time1.tv_usec) / 1000000;
-    spi = 1000 * duration / iter; // calculate seconds per iter
-    //fprintf(stderr, "PBKDF2:%6.3f,%6d,%10.3e\n", duration, iter, spi);
-    // set iter to a value expected to take around 0.12 seconds
+    spi = 1000 * duration / iter; /* calculate seconds per iter */
+    /*fprintf(stderr, "PBKDF2:%6.3f,%6d,%10.3e\n", duration, iter, spi);*/
+    /* set iter to a value expected to take around 0.12 seconds*/
     iter = 0.12 * 1000 / spi;
   }
   safe_free(buf);
-  //fprintf(stderr, "PBKDF2:%6.3f,%6d\n", (float) msec / 1000, (int)(msec / spi));
+  /*fprintf(stderr, "PBKDF2:%6.3f,%6d\n", (float) msec / 1000, (int)(msec / spi));*/
   return (int)(msec / spi);
 }
 
@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
   memset(&header_data, 0, sizeof(header_data));
   
   progname = argv[0];
-  // Seed the PRNG with 
+  /* Seed the PRNG with */
   srandom( time(NULL) ^ (getpid() << (sizeof(int) * 4)) );
 
 #ifndef NONRANDOM
@@ -120,12 +120,13 @@ int main(int argc, char **argv) {
 ", progname);
   srandom(1);
 #endif
-  
+
+  /* parse command line arguments */
   while( (optnr = getopt(argc, argv, OPTSTRING)) != -1 ) {
     switch( optnr ) {
     case 'v':
       fprintf( stdout, "%s", "\
-Copyright 2006-2011 Daniel Silverstone <dsilvers@digital-scurf.org>\n\
+Copyright 2012 Ryan Castellucci <code@ryanc.org>\n\
 This is free software; see the source for copying conditions.  There is NO\n\
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
 " );
@@ -214,7 +215,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     return 1;
   }
 
-  //fprintf(stderr, "%d, %d\n", optind, argc);
+  /*fprintf(stderr, "%d, %d\n", optind, argc);*/
   if (optind == (argc - 2)) {
     in_file  = argv[optind++];
     out_file = argv[optind++];
@@ -226,7 +227,9 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     usage(stderr);
     return 1;
   }
+  /* end command line argument parsing */
 
+  /* some initialization */
   if ((in_fd = open(in_file, O_RDONLY)) < 0) {
     fprintf(stderr, "%s: Failed to open '%s' for reading: ", progname, in_file);
     perror("");
@@ -282,19 +285,79 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
           break;
       }
     }
-    /* decrypt stuff here */
+
+    /* unlock shares */
+    int unlocked = 0;
+    while (unlocked < header_data.thresh) {
+      fprintf(stderr, "More passwords are required to meet decryption threshold.\n");
+      snprintf( prompt, 64, "Enter any remaining share password [%d/%d]: ", unlocked, header_data.thresh);
+      pass_ret = get_pass(pass, 128, prompt, NULL, NULL, 0);
+      if (pass_ret < 0) {
+        fprintf(stderr, "Password entry failed.\n");
+        exit(EXIT_FAILURE);
+      } else if (pass_ret < 1) {
+        fprintf(stderr, "Password must be at least one character(s)\n");
+      } else {
+        assert(pass_ret == (int)strlen(pass));
+
+        int unlock_ret;
+        if ((unlock_ret = unlock_shares(pass, pass_ret, &header_data))){
+          unlocked += unlock_ret;
+          if (unlock_ret == 1) {
+            fprintf(stderr, "Password accepted for 1 additional share.\n");
+          } else {
+            fprintf(stderr, "Password accepted for %d additional shares.\n", unlock_ret);
+          }
+        }
+        memset(pass, 0, sizeof(pass));
+      }
+    }
+    /* Recover master key */
+    tc_gfcombine(&header_data);
+
+    assert(header_data.master_key != NULL);
+    /* verify master key */
+
+    /* open output file */
+    if (out_file != NULL) {
+      if ((out_fd = open(out_file, O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0) {
+        fprintf(stderr, "%s: Failed to open '%s' for writing: ", progname, out_file);
+        perror("");
+        exit(EXIT_FAILURE);
+      }
+    } else {
+      out_fd = fileno(stdout);
+    }
+
+    /* decrypt data */
     ssize_t len;
-    //unsigned char blkdat[BUFFER_SIZE];
-    unsigned char blkmac[64];
+    unsigned char *IV = NULL;
     while ((len = read(in_fd, buf, 4)) > 0) {
+      uint32_t dlen;
+      unsigned char blkmac[32];
+      /*unsigned char blkdat[BUFFER_SIZE];*/
       if (len < 4) {
         fprintf(stderr, "%s: Error: short read of blocklen in '%s'\n", progname, in_file);
         exit(EXIT_FAILURE);
       }
-      uint32_t ulen;
-      LOAD32H(ulen, buf);
-
-
+      LOAD32H(dlen, buf);
+      if (dlen > sizeof(buf)) {
+        fprintf(stderr, "%s: Error: blocklen larger than BUFFER_SIZE: '%s'\n", progname, in_file);
+        exit(EXIT_FAILURE);
+      }
+      if (read(in_fd, buf, dlen) < dlen) {
+        fprintf(stderr, "%s: Error: short read of blockdat in '%s'\n", progname, in_file);
+        exit(EXIT_FAILURE);
+      }
+      if (read(in_fd, blkmac, header_data.hmac_size) < header_data.hmac_size) {
+        fprintf(stderr, "%s: Error: short read of blockmac in '%s'\n", progname, in_file);
+        exit(EXIT_FAILURE);
+      }
+      assert(header_data.master_key != NULL);
+      decrypt_block(buf, buf, dlen,
+                    header_data.master_key, header_data.key_size,
+                    blkmac, header_data.hmac_size, IV);
+      write(out_fd, buf, dlen);
     }
     exit(EXIT_SUCCESS);
   }
@@ -302,8 +365,9 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
   if (mode == MODE_ENCRYPT) {
     STORE64H(FILE_MAGIC,   header_data.magic);
     STORE32H(FILE_VERSION, header_data.version);
-    header_data.cipher      = 1; // Hardcoded for now
-    header_data.hash        = 1; // Hardcoded for now
+    header_data.cipher      = 1; /* Hardcoded for now */
+    header_data.hash        = 1; /* Hardcoded for now */
+    header_data.kdf         = 1; /* Hardcoded for now */
     header_data.nshares     = sharecount;
     header_data.thresh      = threshold;
     header_data.key_size    = key_size;
@@ -324,18 +388,20 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         exit(EXIT_FAILURE);
       } else if (pass_ret < 1) {
         fprintf(stderr, "Password must be at least one character(s)\n");
-        i--; // Retry this keyslot
+        i--; /* Retry this keyslot */
       } else {
         assert(pass_ret == (int)strlen(pass));
         share_data_t *share = &(header_data.shares[i]);
         share->iter = MAX(1024, base_iter ^ (random() & 0x01ff));
         share->key  = safe_malloc(key_size);
         gfshare_fill_rand(share->salt, salt_size);
-        pbkdf2(pass, strlen(pass), share->salt, salt_size, share->iter, hash_idx, share->key, &key_size);
+        pbkdf2(pass, pass_ret, share->salt, salt_size, share->iter, hash_idx, share->key, &key_size);
         memset(pass, 0, sizeof(pass));
       }
     }
-    ret = do_gfsplit(&header_data);
+    ret = tc_gfsplit(&header_data);
+
+    /* open output file */
     if (out_file != NULL) {
       if ((out_fd = open(out_file, O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0) {
         fprintf(stderr, "%s: Failed to open '%s' for writing: ", progname, out_file);
@@ -346,28 +412,32 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       out_fd = fileno(stdout);
     }
     write_header(&header_data, out_fd);
-    unsigned char *IV = NULL;
+    /* encrypt data */
+    /* This is a do-while loop so that a final zero-length data block will *
+     * written as an authenticated EoF marker                              */
     ssize_t len;
-    while ((len = read(in_fd, buf, BUFFER_SIZE)) > 0) {
+    unsigned char *IV = NULL;
+    do {
+      if ((len = read(in_fd, buf, BUFFER_SIZE)) < 0) {
+        perror("Input file read error: ");
+        exit(EXIT_FAILURE);
+      }
       unsigned char blklen[4];
-//      unsigned char blkdat[BUFFER_SIZE];
-      unsigned char blkmac[64];
-      uint32_t ulen = len;
+      unsigned char blkmac[32];
 
-      /* XXX This isn't secure because the starting IV is the same for each call */
       encrypt_block(buf, buf, len,
                    header_data.master_key, header_data.key_size,
                    blkmac, header_data.hmac_size, IV);
+      uint32_t ulen = len;
       STORE32H(ulen, blklen);
       write(out_fd, blklen,   4);
-      //write(out_fd, blkdat, len);
       write(out_fd, buf, len);
       write(out_fd, blkmac, header_data.hmac_size);
-    }
+    } while (len > 0);
     return ret;
   }
 
   return -1;
 }
 
-// vim: ts=2 sw=2 et ai si
+/* vim: set ts=2 sw=2 et ai si: */

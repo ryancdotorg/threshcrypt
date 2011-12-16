@@ -23,5 +23,5 @@ int hmac_vrfymem(int, const unsigned char *, unsigned long,
                       const unsigned char *, unsigned long,
                       const unsigned char *, unsigned long *);
 
-// vim: ts=2 sw=2 et ai si
-#endif // THRESHCRYPT_CRYPT_H_
+/* vim: set ts=2 sw=2 et ai si: */
+#endif /* THRESHCRYPT_CRYPT_H_ */

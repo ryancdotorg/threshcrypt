@@ -10,5 +10,5 @@
 void usage(FILE*);
 int main(int, char **);
 
-// vim: ts=2 sw=2 et ai si
-#endif // THRESHCRYPT_MAIN_H_
+/* vim: set ts=2 sw=2 et ai si: */
+#endif /* THRESHCRYPT_MAIN_H_ */

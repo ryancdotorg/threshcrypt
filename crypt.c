@@ -4,7 +4,6 @@
  * Please see the 'COPYING' file for details.
  */
 
-#include <unistd.h>
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,7 +46,7 @@ int crypt_data(const unsigned char *data_in,
   pbkdf2(data_mkey, data_mkey_size, "C", 1, SUBKEY_ITER, hash_idx, data_ckey, &data_ckey_size);
   if (IV_start == NULL || *IV_start == NULL) {
     IV = safe_malloc(IV_size);
-    fprintf(stderr, "Initializing key-based IV\n");
+    /* fprintf(stderr, "Initializing key-based IV\n"); */
     /* This is at least as secure as starting with a zeroed IV */
     pbkdf2(data_mkey, data_mkey_size, "I", 1, SUBKEY_ITER, hash_idx, IV, &IV_size);
   }
@@ -62,7 +61,7 @@ int crypt_data(const unsigned char *data_in,
   }
 
   unsigned int j;
-  fprintf(stderr, "IV a: ");
+  fprintf(stderr, "IV:        ");
   for (j = 0;j < IV_size;j++) {
     fprintf(stderr, "%02x", IV[j]);
   }
@@ -110,7 +109,7 @@ int crypt_data(const unsigned char *data_in,
       break;
   }
 
-  // before returning, make sure key material isn't in memory
+  /* before returning, make sure key material isn't in memory */
   crypt_data_cleanup:
   ctr_done(&ctr);
   wipe_free(data_hkey, data_hkey_size);
@@ -161,4 +160,4 @@ int pbkdf2_vrfy(const unsigned char *pass, unsigned long  pass_len,
   return CRYPT_OK;
 }
 
-// vim: ts=2 sw=2 et ai si
+/* vim: set ts=2 sw=2 et ai si: */

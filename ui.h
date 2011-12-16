@@ -12,5 +12,5 @@ int save_term(struct termios *);
 
 int get_pass(char *, uint8_t, const char *, const char *, const char *, int);
 
-// vim: ts=2 sw=2 et ai si
-#endif // THRESHCRYPT_UI_H_
+/* vim: set ts=2 sw=2 et ai si: */
+#endif /* THRESHCRYPT_UI_H_ */

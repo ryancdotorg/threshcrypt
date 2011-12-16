@@ -20,7 +20,7 @@ void * safe_malloc(size_t size) {
   void *ptr = malloc(size);
   if (ptr == NULL) {
     perror("malloc");
-    fprintf(stderr, "malloc(%zd) returned NULL\n", size);
+    fprintf(stderr, "malloc(%d) returned NULL\n", (unsigned int)size);
     exit(EXIT_FAILURE);
   }
   memset(ptr, 0, size);
@@ -71,4 +71,4 @@ void fill_rand(unsigned char *buffer,
   fclose(devrandom);
 }
 
-// vim: ts=2 sw=2 et ai si
+/* vim: set ts=2 sw=2 et ai si: */

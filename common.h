@@ -36,7 +36,6 @@
 #define MAX(a,b) ((a)>(b))?(a):(b)
 #endif
 
-
 typedef struct {
 	unsigned char *key;  /* SENSITIVE */
 	unsigned char *ptxt; /* SENSITIVE */
@@ -52,6 +51,7 @@ typedef struct {
 	unsigned char version[4];
 	uint8_t cipher;
 	uint8_t hash;
+	uint8_t kdf;
 	uint8_t nshares;
 	uint8_t thresh;
   /* all sizes in bytes */
@@ -64,5 +64,5 @@ typedef struct {
 	share_data_t *shares;
 } header_data_t;
 
-// vim: ts=2 sw=2 et ai si
-#endif // THRESHCRYPT_COMMON_H_
+/* vim: set ts=2 sw=2 et ai si: */
+#endif /* THRESHCRYPT_COMMON_H_ */

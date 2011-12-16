@@ -64,5 +64,5 @@ share 1..N {
 #define HDR_SHR_HMAC(x, n) HDR_SHR_ITER(x + 96, n)
 /* end of file format offset macros */
 
-// vim: ts=2 sw=2 et ai si
-#endif//THRESCRYPT_FILE_H_
+/* vim: set ts=2 sw=2 et ai si: */
+#endif /* THRESCRYPT_FILE_H_ */
