@@ -52,20 +52,22 @@ int crypt_data(const unsigned char *data_in,
   }
   if (IV_start != NULL) {
     if (*IV_start != NULL) {
-      fprintf(stderr, "IV = *IV_start\n");
+      /* fprintf(stderr, "IV = *IV_start\n"); */
       IV = *IV_start;
     } else {
-      fprintf(stderr, "*IV_start = IV\n");
+      /* fprintf(stderr, "*IV_start = IV\n"); */
       *IV_start = IV;
     }
   }
 
+  /*
   unsigned int j;
   fprintf(stderr, "IV:        ");
   for (j = 0;j < IV_size;j++) {
     fprintf(stderr, "%02x", IV[j]);
   }
   fprintf(stderr, "\n");
+  */
 
   if (mode == MODE_DECRYPT && data_chk_hmac != NULL) {
     if ((err = hmac_vrfymem(hash_idx,
@@ -116,7 +118,9 @@ int crypt_data(const unsigned char *data_in,
   wipe_free(data_ckey, data_ckey_size); 
   /* save the IV */
   if (IV_start != NULL && *IV_start != NULL) {
-    fprintf(stderr, "*IV_start = ctr.ctr\n");
+    /* fprintf(stderr, "*IV_start = ctr.ctr\n"); */
+    /* This is a hack - the tomcrypt api doesn't have a sanctioned api for *
+     * the internal counter state. We just read it out of the struct...    */
     memcpy(*IV_start, ctr.ctr, IV_size);
   }
   return ret;

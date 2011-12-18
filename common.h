@@ -36,6 +36,12 @@
 #define MAX(a,b) ((a)>(b))?(a):(b)
 #endif
 
+/* return codes */
+
+#define THRCR_OK      0
+#define THRCR_ERROR   1
+#define THRCR_BADMAC  2
+
 typedef struct {
 	unsigned char *key;  /* SENSITIVE */
 	unsigned char *ptxt; /* SENSITIVE */

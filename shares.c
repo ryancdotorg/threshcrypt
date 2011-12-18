@@ -49,7 +49,9 @@ int tc_gfsplit(header_data_t *header) {
                     find_hash("sha256"), header->master_hmac, &hmac_size)) != CRYPT_OK) {
     fprintf(stderr, "PBKDF2 failed: %d\n", err);
   }
+  /* end master key setup */
 
+#ifdef CRYPTODEBUG
   fprintf(stderr, "MasterSlt: ");
   for (i = 0;i < SALT_SIZE;i++) {
     fprintf(stderr, "%02x", header->master_salt[i]);
@@ -67,8 +69,7 @@ int tc_gfsplit(header_data_t *header) {
     fprintf(stderr, "%02x", header->master_hmac[i]);
   }
   fprintf(stderr, "\n\n");
-  /* end master key setup */
-
+#endif
 
   /* This is carry-over from the gfsplit example program.
      I don't know why sequential share numbers are not used. */
@@ -105,7 +106,8 @@ int tc_gfsplit(header_data_t *header) {
 
     share->ptxt[0] = sharenrs[i];
     gfshare_ctx_enc_getshare(G, i, share->ptxt + 1);
-    
+
+#ifdef CRYPTODEBUG
     fprintf(stderr, "Salt [%02x]: ", i);
     for (j = 0;j < SALT_SIZE;j++) {
       fprintf(stderr, "%02x", share->salt[j]);
@@ -123,51 +125,51 @@ int tc_gfsplit(header_data_t *header) {
       fprintf(stderr, "%02x", share->ptxt[j]);
     }
     fprintf(stderr, "\n");
+#endif /* CRYPTODEBUG */
 
     if ((err = encrypt_data(share->ptxt, share->ctxt, header->share_size,
                             share->key,  header->key_size,
                             share->hmac, header->hmac_size)) != 0) {
       fprintf(stderr, "Encrypt failed: %d\n", err);
     }
-    memset(share->ptxt, 0, header->share_size);
-#ifdef NOTESTDECRYPT
-    memset(share->key,  0, header->key_size);
-#endif
 
+#ifdef CRYPTODEBUG
     fprintf(stderr, "Crypt[%02x]: ", i);
     for (j = 0;j < header->share_size;j++) {
       fprintf(stderr, "%02x", share->ctxt[j]);
     }
     fprintf(stderr, "\n");
+#endif /* CRYPTODEBUG */
 
-#ifndef NOTESTDECRYPT
+#ifdef TESTDECRYPT
     if ((err = decrypt_data(share->ctxt, share->ptxt, header->share_size,
                             share->key,  header->key_size,
                             share->hmac, header->hmac_size)) != 0) {
       fprintf(stderr, "Decrypt failed: %d\n", err);
     }
-    memset(share->key,  0, header->key_size);
-
+#ifdef CRYPTODEBUG
     fprintf(stderr, "Plain[%02x]: ", i);
     for (j = 0;j < header->share_size;j++) {
       fprintf(stderr, "%02x", share->ptxt[j]);
     }
     fprintf(stderr, "\n");
-    memset(share->ptxt, 0, header->share_size);
-    memset(share->key,  0, header->key_size);
+#endif /* CRYPTODEBUG */
 #endif
     wipe_free(share->ptxt, header->share_size);
     wipe_free(share->key,  header->key_size);
+#ifdef CRYPTODEBUG
     fprintf(stderr, "MAC  [%02x]: ", i);
     for (j = 0;j < header->hmac_size;j++) {
       fprintf(stderr, "%02x", share->hmac[j]);
     }
     fprintf(stderr, "\n\n");
+#endif /* CRYPTODEBUG */
+
   }
 
   /* wipe sensitive data and free memory */
   gfshare_ctx_free(G);
-  safe_free(sharenrs);
+  wipe_free(sharenrs, header->nshares);
   return 0;
 }
 
