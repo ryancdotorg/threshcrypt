@@ -34,8 +34,8 @@ int tc_gfsplit(header_data_t *header) {
   unsigned char *sharenrs = safe_malloc(header->nshares);
 
   /* master key setup */
-  fill_rand(header->master_key,  header->key_size);
-  fill_rand(header->master_salt, SALT_SIZE);
+  gfshare_fill_rand(header->master_key,  header->key_size);
+  gfshare_fill_rand(header->master_salt, SALT_SIZE);
   /* Add (hopefully) some extra protection against potentially weak PRNG
    * TODO use a hash for this... */
   for (i = 0; i < header->nshares; i++ ) {
