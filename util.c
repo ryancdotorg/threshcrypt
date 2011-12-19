@@ -55,21 +55,36 @@ void memxor(unsigned char *p1, const unsigned char *p2, size_t size) {
 
 void fill_rand(unsigned char *buffer,
                unsigned int count) {
-  unsigned long n;
+  size_t n;
 
-  if ((n = rng_get_bytes(buffer, count, NULL)) < count) {
-    fprintf(stderr, "Short read from rng; requested %d bytes, got %ld bytes\n", count, n);
-    exit(EXIT_FAILURE);
+#if defined(LTC_DEVRANDOM) && defined(TRY_URANDOM_FIRST)
+  FILE *devrandom;
+  devrandom = fopen("/dev/random", "rb");
+  if (!devrandom) {
+    fprintf(stderr, "WARNING: Unable to access /dev/random\n");
+#endif
+    if ((n = rng_get_bytes(buffer, count, NULL)) < count) {
+      fprintf(stderr, "Short read from rng; requested %d bytes, got %zd bytes\n", count, n);
+      exit(EXIT_FAILURE);
+    }
+#if defined(LTC_DEVRANDOM) && defined(TRY_URANDOM_FIRST)
+  } else {
+    n = fread(buffer, 1, count, devrandom);
+    if (n < count) {
+      perror("Short read from /dev/random");
+      exit(EXIT_FAILURE);
+    }
   }
+#endif
 }
 
 void fill_prng(unsigned char *buffer,
                unsigned int count) {
   extern prng_state prng;
-  unsigned long n;
+  size_t n;
 
   if ((n = fortuna_read(buffer, count, &prng)) < count) {
-    fprintf(stderr, "Short read from prng; requested %d bytes, got %ld bytes\n", count, n);
+    fprintf(stderr, "Short read from prng; requested %d bytes, got %zd bytes\n", count, n);
     exit(EXIT_FAILURE);
   }
 }

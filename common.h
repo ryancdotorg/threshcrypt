@@ -16,6 +16,10 @@
 #define DEFAULT_THRESHOLD  2
 #define DEFAULT_KEY_BITS   256
 
+#define MAX_ITER_MS    60000
+#define MAX_KEY_SIZE   64
+#define MAX_HMAC_SIZE  32
+
 #define SUBKEY_ITER 16
 
 #define SALT_SIZE 12
@@ -24,7 +28,7 @@
 #define BUFFER_SIZE 65536
 
 #define pbkdf2(p, pl, s, ss, i, h, k, ks) \
-        pkcs_5_alg2(p, pl, s, ss, i, h, k, (long unsigned int *)ks)
+        pkcs_5_alg2(p, pl, s, ss, i, h, k, (unsigned long *)ks)
 
 #ifndef MIN
 #define MIN(a,b) ((a)<(b))?(a):(b)

@@ -70,7 +70,7 @@ int get_pass(char *pass, uint8_t pass_size, const char *prompt,
       return -1;
     }
     if (vprompt != NULL) {
-      fprintf(stderr, "\033[%dD\033[2K", (unsigned int)strlen(prompt));
+      fprintf(stderr, "\033[0G\033[2K");
       j = get_pass(vpass, pass_size, vprompt, NULL, NULL, 0);
       if (j != i || memcmp(pass, vpass, i) != 0) {
         memset(vpass, 0, sizeof(vpass));

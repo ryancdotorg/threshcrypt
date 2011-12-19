@@ -136,10 +136,10 @@ int hmac_vrfymem(int hash,
   return CRYPT_OK;
 }
 
-int pbkdf2_vrfy(const unsigned char *pass, unsigned long  pass_len,
-                const unsigned char *salt, unsigned long  salt_len,
-                               int   iter,          int   hash_idx, 
-                const unsigned char *vrfy, unsigned long *vrfylen) {
+int _pbkdf2_vrfy(const unsigned char *pass, unsigned long  pass_len,
+                 const unsigned char *salt, unsigned long  salt_len,
+                                int   iter,          int   hash_idx, 
+                 const unsigned char *vrfy, unsigned long *vrfylen) {
   unsigned char *out = safe_malloc(*vrfylen);
   int err;
   if ((err = pbkdf2(pass, pass_len, salt, salt_len,

@@ -66,13 +66,17 @@ static int pbkdf2_itertime(int hash_idx, size_t size, int msec) {
     iter = 0.12 * 1000 / spi;
   }
   safe_free(buf);
+  if (msec > INT_MAX * spi) {
+    fprintf(stderr, "PBKDF2:%6.3f,%6d\n", (float) msec / 1000, INT_MAX);
+    return INT_MAX;
+  }
   fprintf(stderr, "PBKDF2:%6.3f,%6d\n", (float) msec / 1000, (int)(msec / spi));
   return (int)(msec / spi);
 }
 
 void usage(FILE* stream) {
   fprintf(stream, "\
-Usage: %s [-c iterations] [-m sharecount] [-n threshold] infile [outfile]\n\
+Usage: %s [-i iterations] [-n sharecount] [-t threshold] infile [outfile]\n\
   where sharecount is the number of shares to build.\n\
   where threshold is the number of shares needed to recombine.\n\
 \n\
@@ -86,8 +90,9 @@ int main(int argc, char **argv) {
   unsigned int sharecount = DEFAULT_SHARECOUNT;
   unsigned int threshold  = DEFAULT_THRESHOLD;
   unsigned int key_bits   = DEFAULT_KEY_BITS;
-           int base_iter  = DEFAULT_ITERATIONS;
            int mode       = MODE_UNKNOWN;
+           int iter       = DEFAULT_ITERATIONS;
+           int iter_ms    = 0;
 
   unsigned char buf[BUFFER_SIZE];
 
@@ -176,15 +181,29 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       mode = MODE_DECRYPT;
       break;
     case 'i':
-      base_iter = strtoul( optarg, &endptr, 10 );
       if (mode == MODE_DECRYPT) {
         fprintf(stderr, "%s: Conflicting mode option -i, mode set to decrypt by previous option\n", progname);
         return 1;
       }
       mode = MODE_ENCRYPT;
+      iter = strtoul( optarg, &endptr, 10 );
       if (*endptr != 0 || *optarg == 0 || 
-          base_iter < 1024 || base_iter > INT_MAX ) {
-          fprintf(stderr, "%s: Invalid argument to option -i (%d)\n", progname, base_iter);
+          iter < 1024 || iter > INT_MAX ) {
+          fprintf(stderr, "%s: Invalid argument to option -i (%d)\n", progname, iter);
+          usage(stderr);
+          return 1;
+      }
+      break;
+    case 'm':
+      if (mode == MODE_DECRYPT) {
+        fprintf(stderr, "%s: Conflicting mode option -i, mode set to decrypt by previous option\n", progname);
+        return 1;
+      }
+      iter_ms = strtoul(optarg, &endptr, 10);
+      mode = MODE_ENCRYPT;
+      if (*endptr != 0 || *optarg == 0 || 
+          iter_ms < 1 || iter_ms > MAX_ITER_MS ) {
+          fprintf(stderr, "%s: Invalid argument to option -m (%d)\n", progname, iter_ms);
           usage(stderr);
           return 1;
       }
@@ -203,29 +222,29 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
           return 1;
       }
       break;
-    case 'm':
-      sharecount = strtoul( optarg, &endptr, 10 );
-      if (mode == MODE_DECRYPT) {
-        fprintf(stderr, "%s: Conflicting mode option -m, mode set to decrypt by previous option\n", progname);
-        return 1;
-      }
-      mode = MODE_ENCRYPT;
-      if( *endptr != 0 || *optarg == 0 || 
-          sharecount < 2 || sharecount > 255 ) {
-        fprintf(stderr, "%s: Invalid argument to option -m (%d)\n", progname, sharecount );
-        usage(stderr);
-        return 1;
-      }
-      break;
     case 'n':
-      threshold = strtoul( optarg, &endptr, 10 );
+      sharecount = strtoul( optarg, &endptr, 10 );
       if (mode == MODE_DECRYPT) {
         fprintf(stderr, "%s: Conflicting mode option -n, mode set to decrypt by previous option\n", progname);
         return 1;
       }
       mode = MODE_ENCRYPT;
+      if( *endptr != 0 || *optarg == 0 || 
+          sharecount < 2 || sharecount > 255 ) {
+        fprintf(stderr, "%s: Invalid argument to option -n (%d)\n", progname, sharecount );
+        usage(stderr);
+        return 1;
+      }
+      break;
+    case 't':
+      threshold = strtoul( optarg, &endptr, 10 );
+      if (mode == MODE_DECRYPT) {
+        fprintf(stderr, "%s: Conflicting mode option -t, mode set to decrypt by previous option\n", progname);
+        return 1;
+      }
+      mode = MODE_ENCRYPT;
       if( *endptr != 0 || *optarg == 0 || threshold < 2) {
-        fprintf(stderr, "%s: Invalid argument to option -n (%d)\n", progname, threshold );
+        fprintf(stderr, "%s: Invalid argument to option -t (%d)\n", progname, threshold );
         usage(stderr);
         return 1;
       }
@@ -312,11 +331,6 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         int unlock_ret;
         if ((unlock_ret = unlock_shares(pass, pass_ret, &header))){
           unlocked += unlock_ret;
-          if (unlock_ret == 1) {
-            fprintf(stderr, "Password accepted for 1 additional share.\n");
-          } else {
-            fprintf(stderr, "Password accepted for %d additional shares.\n", unlock_ret);
-          }
         }
         memset(pass, 0, sizeof(pass));
       }
@@ -417,7 +431,9 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     header.master_key  = safe_malloc(key_size);
     header.shares      = safe_malloc(sharecount * sizeof(share_data_t));
 
-    pbkdf2_itertime(hash_idx, key_size, 100);
+    if (iter_ms) {
+      iter = pbkdf2_itertime(hash_idx, key_size, iter_ms);
+    }
     for (i = 0;i < sharecount; i++) {
       snprintf( prompt, 64, "Enter Password  [%d/%d]: ", i + 1, sharecount);
       snprintf(vprompt, 64, "Verify Password [%d/%d]: ", i + 1, sharecount);
@@ -431,7 +447,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       } else {
         assert(pass_ret == (int)strlen(pass));
         share_data_t *share = &(header.shares[i]);
-        share->iter = MAX(1024, base_iter ^ (random() & 0x01ff));
+        share->iter = MAX(1024, iter ^ (random() & 0x01ff));
         share->key  = safe_malloc(key_size);
         fill_prng(share->salt, salt_size);
         pbkdf2(pass, pass_ret, share->salt, salt_size, share->iter, hash_idx, share->key, &key_size);

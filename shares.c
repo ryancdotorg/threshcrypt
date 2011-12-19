@@ -189,6 +189,7 @@ int unlock_shares(const unsigned char *pass, size_t pass_len, header_data_t *hea
       unsigned long key_size;
       key_size = header->key_size;
 
+      fprintf(stderr, "\033[0G\033[2KChecking share %d", i);
       if ((err = pbkdf2(pass, pass_len, share->salt, SALT_SIZE, share->iter,
                         find_hash("sha256"), share->key, &key_size)) != CRYPT_OK) {
         /* on an hmac failure (wrong password) */
@@ -199,7 +200,7 @@ int unlock_shares(const unsigned char *pass, size_t pass_len, header_data_t *hea
       if ((err = decrypt_data(share->ctxt, share->ptxt, header->share_size,
                               share->key,  header->key_size,
                               share->hmac, header->hmac_size)) == 0) {
-        fprintf(stderr, "Unlocked share %d\n", i);
+        fprintf(stderr, "\033[0G\033[2KUnlocked share %d\n", i);
         ret++;
       } else {
         wipe_free(share->ptxt, header->share_size);
@@ -207,6 +208,7 @@ int unlock_shares(const unsigned char *pass, size_t pass_len, header_data_t *hea
       wipe_free(share->key, header->key_size);
     }
   }
+  fprintf(stderr, "\033[0G\033[2K");
   return ret;
 }
 
