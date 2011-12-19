@@ -98,9 +98,9 @@ int main(int argc, char **argv) {
   char *endptr;
   int optnr;
   
-  header_data_t header_data;
+  header_data_t header;
   /* zero the memory of the struct - sets all pointers to NULL */
-  memset(&header_data, 0, sizeof(header_data));
+  memset(&header, 0, sizeof(header));
   
   progname = argv[0];
   /* Seed the PRNG with */
@@ -275,7 +275,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       fprintf(stderr, "%s: Error reading header of '%s': too small\n", progname, in_file);
       exit(EXIT_FAILURE);
     }
-    if ((err = parse_header(buf, &header_data)) != 0) {
+    if ((err = parse_header(buf, &header)) != 0) {
       switch(err) {
         case 1:
           fprintf(stderr, "%s: Error reading header of '%s': no magic\n", progname, in_file);
@@ -288,9 +288,9 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
 
     /* unlock shares */
     int unlocked = 0;
-    while (unlocked < header_data.thresh) {
+    while (unlocked < header.thresh) {
       fprintf(stderr, "More passwords are required to meet decryption threshold.\n");
-      snprintf( prompt, 64, "Enter any remaining share password [%d/%d]: ", unlocked, header_data.thresh);
+      snprintf( prompt, 64, "Enter any remaining share password [%d/%d]: ", unlocked, header.thresh);
       pass_ret = get_pass(pass, 128, prompt, NULL, NULL, 0);
       if (pass_ret < 0) {
         fprintf(stderr, "Password entry failed.\n");
@@ -301,7 +301,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         assert(pass_ret == (int)strlen(pass));
 
         int unlock_ret;
-        if ((unlock_ret = unlock_shares(pass, pass_ret, &header_data))){
+        if ((unlock_ret = unlock_shares(pass, pass_ret, &header))){
           unlocked += unlock_ret;
           if (unlock_ret == 1) {
             fprintf(stderr, "Password accepted for 1 additional share.\n");
@@ -313,9 +313,9 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       }
     }
     /* Recover master key */
-    tc_gfcombine(&header_data);
+    tc_gfcombine(&header);
 
-    assert(header_data.master_key != NULL);
+    assert(header.master_key != NULL);
     /* verify master key */
 
     /* open output file */
@@ -349,14 +349,14 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         fprintf(stderr, "%s: Error: short read of blockdat in '%s'\n", progname, in_file);
         exit(EXIT_FAILURE);
       }
-      if ((len = read(in_fd, blkmac, header_data.hmac_size)) < header_data.hmac_size) {
+      if ((len = read(in_fd, blkmac, header.hmac_size)) < header.hmac_size) {
         fprintf(stderr, "%s: Error: short read of blockmac in '%s'\n", progname, in_file);
         exit(EXIT_FAILURE);
       }
-      assert(header_data.master_key != NULL);
+      assert(header.master_key != NULL);
       decrypt_block(buf, buf, dlen,
-                    header_data.master_key, header_data.key_size,
-                    blkmac, header_data.hmac_size, IV);
+                    header.master_key, header.key_size,
+                    blkmac, header.hmac_size, IV);
       write(out_fd, buf, dlen);
     }
     exit(EXIT_SUCCESS);
@@ -366,20 +366,20 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     unsigned char magic[THRCR_MAGIC_LEN]     = THRCR_MAGIC;
     unsigned char version[THRCR_VERSION_LEN] = THRCR_VERSION;
 
-    memcpy(header_data.magic,   magic,   THRCR_MAGIC_LEN);
-    memcpy(header_data.version, version, THRCR_VERSION_LEN);
-    header_data.cipher      = 1; /* Hardcoded for now */
-    header_data.hash        = 1; /* Hardcoded for now */
-    header_data.kdf         = 1; /* Hardcoded for now */
-    header_data.nshares     = sharecount;
-    header_data.thresh      = threshold;
-    header_data.key_size    = key_size;
-    header_data.hmac_size   = hmac_size;
-    header_data.share_size  = share_size;
-    header_data.master_iter = SUBKEY_ITER;
-    header_data.master_hmac = safe_malloc(hmac_size);
-    header_data.master_key  = safe_malloc(key_size);
-    header_data.shares      = safe_malloc(sharecount * sizeof(share_data_t));
+    memcpy(header.magic,   magic,   THRCR_MAGIC_LEN);
+    memcpy(header.version, version, THRCR_VERSION_LEN);
+    header.cipher      = 1; /* Hardcoded for now */
+    header.hash        = 1; /* Hardcoded for now */
+    header.kdf         = 1; /* Hardcoded for now */
+    header.nshares     = sharecount;
+    header.thresh      = threshold;
+    header.key_size    = key_size;
+    header.hmac_size   = hmac_size;
+    header.share_size  = share_size;
+    header.master_iter = SUBKEY_ITER;
+    header.master_hmac = safe_malloc(hmac_size);
+    header.master_key  = safe_malloc(key_size);
+    header.shares      = safe_malloc(sharecount * sizeof(share_data_t));
 
     pbkdf2_itertime(hash_idx, key_size, 100);
     for (i = 0;i < sharecount; i++) {
@@ -394,7 +394,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         i--; /* Retry this keyslot */
       } else {
         assert(pass_ret == (int)strlen(pass));
-        share_data_t *share = &(header_data.shares[i]);
+        share_data_t *share = &(header.shares[i]);
         share->iter = MAX(1024, base_iter ^ (random() & 0x01ff));
         share->key  = safe_malloc(key_size);
         gfshare_fill_rand(share->salt, salt_size);
@@ -402,7 +402,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         memset(pass, 0, sizeof(pass));
       }
     }
-    ret = tc_gfsplit(&header_data);
+    ret = tc_gfsplit(&header);
 
     /* open output file */
     if (out_file != NULL) {
@@ -414,7 +414,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     } else {
       out_fd = fileno(stdout);
     }
-    write_header(&header_data, out_fd);
+    write_header(&header, out_fd);
     /* encrypt data */
     /* This is a do-while loop so that a final zero-length data block will *
      * written as an authenticated EoF marker                              */
@@ -429,13 +429,13 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       unsigned char blkmac[32];
 
       encrypt_block(buf, buf, len,
-                   header_data.master_key, header_data.key_size,
-                   blkmac, header_data.hmac_size, IV);
+                   header.master_key, header.key_size,
+                   blkmac, header.hmac_size, IV);
       uint32_t ulen = len;
       STORE32H(ulen, blklen);
       write(out_fd, blklen,   4);
       write(out_fd, buf, len);
-      write(out_fd, blkmac, header_data.hmac_size);
+      write(out_fd, blkmac, header.hmac_size);
     } while (len > 0);
     return ret;
   }
