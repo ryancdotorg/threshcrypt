@@ -27,7 +27,7 @@ int parse_header(unsigned char *buf, header_data_t *header) {
 
   /* Check if the data starts with our magic before attempting to parse */
   if (memcmp(HDR_MAGIC(buf), magic, THRCR_MAGIC_LEN))
-    return 1; /* no magic */
+    return THRCR_NOMAGIC;
   
   /* Identification data */
   memcpy(header->magic,         HDR_MAGIC(buf),      THRCR_MAGIC_LEN); 
@@ -46,7 +46,7 @@ int parse_header(unsigned char *buf, header_data_t *header) {
   if (header->key_size   > 64 || header->hmac_size   > 32 ||
       header->share_size > 80 || header->nshares     <  2 ||
       header->thresh < 2 || header->thresh > header->nshares)
-    return 2; /* bad data */
+    return THRCR_BADDATA;
 
   header->master_hmac = safe_malloc(header->hmac_size);
   header->shares      = safe_malloc(header->nshares * sizeof(share_data_t));
@@ -70,7 +70,7 @@ int parse_header(unsigned char *buf, header_data_t *header) {
     memcpy(share->hmac, HDR_SHR_HMAC(buf, i), header->hmac_size);
   }
 
-  return 0;
+  return THRCR_OK;
 }
 
 int write_header(header_data_t *header, int fd) {
@@ -109,10 +109,10 @@ int write_header(header_data_t *header, int fd) {
 
   if (write(fd, buf, HEADER_SIZE) < HEADER_SIZE) {
     fprintf(stderr, "Short fwrite on header\n");
-    return -1;
+    return THRCR_WRITEERR;
   }
 
-  return 0;
+  return THRCR_OK;
 }
 
 /* vim: set ts=2 sw=2 et ai si: */

@@ -60,22 +60,12 @@ int crypt_data(const unsigned char *data_in,
     }
   }
 
-  /*
-  unsigned int j;
-  fprintf(stderr, "IV:        ");
-  for (j = 0;j < IV_size;j++) {
-    fprintf(stderr, "%02x", IV[j]);
-  }
-  fprintf(stderr, "\n");
-  */
-
   if (mode == MODE_DECRYPT && data_chk_hmac != NULL) {
     if ((err = hmac_vrfymem(hash_idx,
                             data_hkey, data_hkey_size,
                             data_in, data_size, data_chk_hmac,
                             (long unsigned int *)&data_hmac_size)) != CRYPT_OK) {
-      fprintf(stderr, "hmac error: %s\n", error_to_string(err));
-      ret = -1; goto crypt_data_cleanup;
+      ret = THRCR_BADMAC; goto crypt_data_cleanup;
     }
   }
 
@@ -135,6 +125,7 @@ int hmac_vrfymem(int hash,
   int err;
   if ((err = hmac_memory(hash, key, keylen, in, inlen, out, outlen)) != CRYPT_OK) {
     safe_free(out);
+    fprintf(stderr, "hmac_vrfymem: hmac_memory failed\n");
     return err;
   }
   if (memcmp(vrfy, out, *outlen) != 0) {

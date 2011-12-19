@@ -282,14 +282,14 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     if (read(in_fd, buf, HEADER_SIZE) < HEADER_SIZE) {
       /* Not a threshcrypt file - too small */
       fprintf(stderr, "%s: Error reading header of '%s': too small\n", progname, in_file);
-      exit(EXIT_FAILURE);
+      return THRCR_ERROR;
     }
     if ((err = parse_header(buf, &header)) != 0) {
       switch(err) {
-        case 1:
+        case THRCR_NOMAGIC:
           fprintf(stderr, "%s: Error reading header of '%s': no magic\n", progname, in_file);
           break;
-        case 2:
+        case THRCR_BADDATA:
           fprintf(stderr, "%s: Error reading header of '%s': bad data\n", progname, in_file);
           break;
       }
@@ -303,7 +303,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       pass_ret = get_pass(pass, 128, prompt, NULL, NULL, 0);
       if (pass_ret < 0) {
         fprintf(stderr, "Password entry failed.\n");
-        exit(EXIT_FAILURE);
+        return THRCR_ERROR;
       } else if (pass_ret < 1) {
         fprintf(stderr, "Password must be at least one character(s)\n");
       } else {
@@ -321,11 +321,20 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         memset(pass, 0, sizeof(pass));
       }
     }
+    fprintf(stderr, "Decrypting data...\n");
     /* Recover master key */
     tc_gfcombine(&header);
 
     assert(header.master_key != NULL);
+
     /* verify master key */
+    size_t hmac_size = header.hmac_size;
+    if ((err = pbkdf2_vrfy(header.master_key, header.key_size, header.master_salt, SALT_SIZE,
+                           SUBKEY_ITER, hash_idx, header.master_hmac, &hmac_size)) != CRYPT_OK) {
+      fprintf(stderr, "Master key verification failed!\n");
+      free_header(&header);
+      exit(EXIT_FAILURE);
+    }
 
     /* open output file */
     if (out_file != NULL) {
@@ -340,36 +349,45 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
 
     /* decrypt data */
     ssize_t len;
+    uint32_t dlen;
     unsigned char *IV = NULL;
-    while ((len = read(in_fd, buf, 4)) > 0) {
-      uint32_t dlen;
+    do {
       unsigned char blkmac[32];
-      /*unsigned char blkdat[BUFFER_SIZE];*/
+
+      len = read(in_fd, buf, 4);
       if (len < 4) {
         fprintf(stderr, "%s: Error: short read of blocklen in '%s'\n", progname, in_file);
-        exit(EXIT_FAILURE);
+        ret = THRCR_READERR;
+        break;
       }
       LOAD32H(dlen, buf);
       if (dlen > sizeof(buf)) {
         fprintf(stderr, "%s: Error: blocklen larger than BUFFER_SIZE: '%s'\n", progname, in_file);
-        exit(EXIT_FAILURE);
+        ret = THRCR_BADDATA;
+        break;
       }
       if ((len = read(in_fd, buf, dlen)) < (ssize_t)dlen) {
         fprintf(stderr, "%s: Error: short read of blockdat in '%s'\n", progname, in_file);
-        exit(EXIT_FAILURE);
+        ret = THRCR_READERR;
+        break;
       }
       if ((len = read(in_fd, blkmac, header.hmac_size)) < header.hmac_size) {
         fprintf(stderr, "%s: Error: short read of blockmac in '%s'\n", progname, in_file);
-        exit(EXIT_FAILURE);
+        ret = THRCR_READERR;
+        break;
       }
-      assert(header.master_key != NULL);
-      decrypt_block(buf, buf, dlen,
-                    header.master_key, header.key_size,
-                    blkmac, header.hmac_size, IV);
+      if ((err = decrypt_block(buf, buf, dlen,
+                               header.master_key, header.key_size,
+                               blkmac, header.hmac_size, IV)) != THRCR_OK) {
+        fprintf(stderr, "Error: Failed to decrypt block\n");
+        ret = THRCR_DECERR;
+        break;
+      }
       write(out_fd, buf, dlen);
-    }
+    } while (dlen > 0);
+    memset(buf, 0, BUFFER_SIZE);
     free_header(&header);
-    exit(EXIT_SUCCESS);
+    return ret;
   }
 
   if (mode == MODE_ENCRYPT) {
@@ -426,8 +444,6 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     }
     write_header(&header, out_fd);
     /* encrypt data */
-    /* This is a do-while loop so that a final zero-length data block will *
-     * written as an authenticated EoF marker                              */
     ssize_t len;
     unsigned char *IV = NULL;
     assert(header.master_key != NULL);
@@ -439,20 +455,27 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       unsigned char blklen[4];
       unsigned char blkmac[32];
 
-      encrypt_block(buf, buf, len,
-                   header.master_key, header.key_size,
-                   blkmac, header.hmac_size, IV);
+      if ((err = encrypt_block(buf, buf, len,
+                               header.master_key, header.key_size,
+                               blkmac, header.hmac_size, IV)) != THRCR_OK) {
+        fprintf(stderr, "Error: Failed to encrypt block\n");
+        memset(buf, 0, BUFFER_SIZE);
+        free_header(&header);
+        exit(EXIT_FAILURE);
+      }
       uint32_t ulen = len;
       STORE32H(ulen, blklen);
       write(out_fd, blklen,   4);
       write(out_fd, buf, len);
       write(out_fd, blkmac, header.hmac_size);
+      /* The final block is zero len and acts as an authenticate EoF marker */
     } while (len > 0);
+    memset(buf, 0, BUFFER_SIZE);
     free_header(&header);
     return ret;
   }
 
-  return -1;
+  return THRCR_ERROR;
 }
 
 /* vim: set ts=2 sw=2 et ai si: */

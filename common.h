@@ -36,14 +36,17 @@
 
 /* return codes */
 
-#define THRCR_OK        0
-#define THRCR_ERROR     1
-#define THRCR_BADMODE   2
-#define THRCR_BADDATA   3
-#define THRCR_BADMAC    4
-#define THRCR_ENCERR    5
-#define THRCR_DECERR    6
-#define THRCR_IOERR     7
+#define THRCR_OK         0
+#define THRCR_ERROR      1
+#define THRCR_NOMAGIC    2
+#define THRCR_BADMODE    3
+#define THRCR_BADDATA    4
+#define THRCR_BADMAC     5
+#define THRCR_ENCERR     6
+#define THRCR_DECERR     7
+#define THRCR_IOERR      8
+#define THRCR_READERR    9
+#define THRCR_WRITEERR  10
 
 typedef struct {
 	unsigned char *key;  /* SENSITIVE */
