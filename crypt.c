@@ -120,7 +120,7 @@ int crypt_data(const unsigned char *data_in,
   if (IV_start != NULL && *IV_start != NULL) {
     /* fprintf(stderr, "*IV_start = ctr.ctr\n"); */
     /* This is a hack - the tomcrypt api doesn't have a sanctioned api for *
-     * the internal counter state. We just read it out of the struct...    */
+     * getting the internal counter state. We just read it out of the struct. */
     memcpy(*IV_start, ctr.ctr, IV_size);
   }
   return ret;

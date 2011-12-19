@@ -170,6 +170,7 @@ int tc_gfsplit(header_data_t *header) {
   /* wipe sensitive data and free memory */
   gfshare_ctx_free(G);
   wipe_free(sharenrs, header->nshares);
+  wipe_free(header->master_key, header->key_size);
   return 0;
 }
 
@@ -208,7 +209,6 @@ int unlock_shares(const unsigned char *pass, size_t pass_len, header_data_t *hea
   }
   return ret;
 }
-
 
 int tc_gfcombine(header_data_t *header) {
   int i, loaded, err, ret;

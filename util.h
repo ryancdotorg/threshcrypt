@@ -19,5 +19,7 @@ void memxor(unsigned char *, const unsigned char *, size_t);
 
 void fill_rand(unsigned char *, unsigned int);
 
+void free_header(header_data_t *);
+
 /* vim: set ts=2 sw=2 et ai si: */
 #endif /* THRESCRYPT_UTIL_H_ */

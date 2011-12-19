@@ -23,7 +23,8 @@
 #define HEADER_SIZE 32768
 #define BUFFER_SIZE 65536
 
-#define pbkdf2(p, pl, s, ss, i, h, k, ks) pkcs_5_alg2(p, pl, s, ss, i, h, k, (long unsigned int *)ks)
+#define pbkdf2(p, pl, s, ss, i, h, k, ks) \
+        pkcs_5_alg2(p, pl, s, ss, i, h, k, (long unsigned int *)ks)
 
 #ifndef MIN
 #define MIN(a,b) ((a)<(b))?(a):(b)
@@ -35,9 +36,14 @@
 
 /* return codes */
 
-#define THRCR_OK      0
-#define THRCR_ERROR   1
-#define THRCR_BADMAC  2
+#define THRCR_OK        0
+#define THRCR_ERROR     1
+#define THRCR_BADMODE   2
+#define THRCR_BADDATA   3
+#define THRCR_BADMAC    4
+#define THRCR_ENCERR    5
+#define THRCR_DECERR    6
+#define THRCR_IOERR     7
 
 typedef struct {
 	unsigned char *key;  /* SENSITIVE */

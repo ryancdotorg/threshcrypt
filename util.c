@@ -71,4 +71,32 @@ void fill_rand(unsigned char *buffer,
   fclose(devrandom);
 }
 
+/* Free header memory, wiping sensitive parts */
+void free_header(header_data_t *header) {
+  int i;
+
+  assert(header != NULL);
+  assert(header->shares != NULL);
+  /* wipe/free pointers within each share */
+  for (i = 0; i < header->nshares;i++) {
+    share_data_t *share;
+    share = &(header->shares[i]);
+
+    if (share->key != NULL)
+      wipe_free(share->key, header->key_size);
+    if (share->ptxt != NULL)
+      wipe_free(share->ptxt, header->share_size);
+    if (share->ctxt != NULL)
+      safe_free(share->ctxt);
+    if (share->hmac != NULL)
+      safe_free(share->hmac);
+  }
+  /* free memory from shares */
+  safe_free(header->shares);
+  if (header->master_key != NULL)
+    wipe_free(header->master_key, header->key_size);
+  if (header->master_hmac != NULL)
+    safe_free(header->master_hmac);
+}
+
 /* vim: set ts=2 sw=2 et ai si: */

@@ -359,6 +359,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
                     blkmac, header.hmac_size, IV);
       write(out_fd, buf, dlen);
     }
+    free_header(&header);
     exit(EXIT_SUCCESS);
   }
 
@@ -437,6 +438,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       write(out_fd, buf, len);
       write(out_fd, blkmac, header.hmac_size);
     } while (len > 0);
+    free_header(&header);
     return ret;
   }
 
