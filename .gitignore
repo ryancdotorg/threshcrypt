@@ -3,6 +3,7 @@
 *.o
 *.bin
 *.dat
+*.tcy
 tags
 threshcrypt
 threshcrypt_*

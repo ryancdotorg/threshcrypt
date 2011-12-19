@@ -20,18 +20,18 @@
 
 /* buf should be a 32768+ byte buffer containing header data from a file */
 int parse_header(unsigned char *buf, header_data_t *header) {
-  unsigned char magic[8];
+  unsigned char magic[THRCR_MAGIC_LEN]     = THRCR_MAGIC;
+  /*unsigned char version[THRCR_VERSION_LEN] = THRCR_VERSION;*/
+
   share_data_t *share;
 
-  STORE64H(FILE_MAGIC, magic);
-
   /* Check if the data starts with our magic before attempting to parse */
-  if (memcmp(HDR_MAGIC(buf), magic, 8))
+  if (memcmp(HDR_MAGIC(buf), magic, THRCR_MAGIC_LEN))
     return 1; /* no magic */
   
   /* Identification data */
-  memcpy(header->magic,         HDR_MAGIC(buf),      8); 
-  memcpy(header->version,       HDR_VERSION(buf),    4);
+  memcpy(header->magic,         HDR_MAGIC(buf),      THRCR_MAGIC_LEN); 
+  memcpy(header->version,       HDR_VERSION(buf),    THRCR_VERSION_LEN);
 
   /* Parameter data */
   memcpy(&(header->cipher),     HDR_CIPHER(buf),     1);

@@ -72,8 +72,8 @@ int crypt_data(const unsigned char *data_in,
   if (mode == MODE_DECRYPT && data_chk_hmac != NULL) {
     if ((err = hmac_vrfymem(hash_idx,
                             data_hkey, data_hkey_size,
-                            data_in, data_size,
-                            data_chk_hmac, &data_hmac_size)) != CRYPT_OK) {
+                            data_in, data_size, data_chk_hmac,
+                            (long unsigned int *)&data_hmac_size)) != CRYPT_OK) {
       fprintf(stderr, "hmac error: %s\n", error_to_string(err));
       ret = -1; goto crypt_data_cleanup;
     }
@@ -102,8 +102,8 @@ int crypt_data(const unsigned char *data_in,
       if (data_new_hmac != NULL) {
         if ((err = hmac_memory(hash_idx,
                                data_hkey, data_hkey_size,
-                               data_out, data_size,
-                               data_new_hmac, &data_hmac_size)) != CRYPT_OK) {
+                               data_out, data_size, data_new_hmac,
+                               (long unsigned int *)&data_hmac_size)) != CRYPT_OK) {
           fprintf(stderr, "hmac error: %s\n", error_to_string(err)); 
           ret = -1; goto crypt_data_cleanup;
         }

@@ -7,9 +7,6 @@
 #ifndef THRESHCRYPT_COMMON_H_
 #define THRESHCRYPT_COMMON_H_
 
-#define FILE_MAGIC   0x6be114190fe1a015ULL
-#define FILE_VERSION 0x00000001U
-
 #define MODE_UNKNOWN 0
 #define MODE_ENCRYPT 1
 #define MODE_DECRYPT 2
@@ -26,7 +23,7 @@
 #define HEADER_SIZE 32768
 #define BUFFER_SIZE 65536
 
-#define pbkdf2 pkcs_5_alg2
+#define pbkdf2(p, pl, s, ss, i, h, k, ks) pkcs_5_alg2(p, pl, s, ss, i, h, k, (long unsigned int *)ks)
 
 #ifndef MIN
 #define MIN(a,b) ((a)<(b))?(a):(b)

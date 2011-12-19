@@ -64,7 +64,7 @@ static int pbkdf2_itertime(int hash_idx, size_t size, int msec) {
     iter = 0.12 * 1000 / spi;
   }
   safe_free(buf);
-  /*fprintf(stderr, "PBKDF2:%6.3f,%6d\n", (float) msec / 1000, (int)(msec / spi));*/
+  fprintf(stderr, "PBKDF2:%6.3f,%6d\n", (float) msec / 1000, (int)(msec / spi));
   return (int)(msec / spi);
 }
 
@@ -345,11 +345,11 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         fprintf(stderr, "%s: Error: blocklen larger than BUFFER_SIZE: '%s'\n", progname, in_file);
         exit(EXIT_FAILURE);
       }
-      if (read(in_fd, buf, dlen) < dlen) {
+      if ((len = read(in_fd, buf, dlen)) < (ssize_t)dlen) {
         fprintf(stderr, "%s: Error: short read of blockdat in '%s'\n", progname, in_file);
         exit(EXIT_FAILURE);
       }
-      if (read(in_fd, blkmac, header_data.hmac_size) < header_data.hmac_size) {
+      if ((len = read(in_fd, blkmac, header_data.hmac_size)) < header_data.hmac_size) {
         fprintf(stderr, "%s: Error: short read of blockmac in '%s'\n", progname, in_file);
         exit(EXIT_FAILURE);
       }
@@ -363,8 +363,11 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
   }
 
   if (mode == MODE_ENCRYPT) {
-    STORE64H(FILE_MAGIC,   header_data.magic);
-    STORE32H(FILE_VERSION, header_data.version);
+    unsigned char magic[THRCR_MAGIC_LEN]     = THRCR_MAGIC;
+    unsigned char version[THRCR_VERSION_LEN] = THRCR_VERSION;
+
+    memcpy(header_data.magic,   magic,   THRCR_MAGIC_LEN);
+    memcpy(header_data.version, version, THRCR_VERSION_LEN);
     header_data.cipher      = 1; /* Hardcoded for now */
     header_data.hash        = 1; /* Hardcoded for now */
     header_data.kdf         = 1; /* Hardcoded for now */
@@ -378,7 +381,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     header_data.master_key  = safe_malloc(key_size);
     header_data.shares      = safe_malloc(sharecount * sizeof(share_data_t));
 
-    pbkdf2_itertime(hash_idx, key_size, 10);
+    pbkdf2_itertime(hash_idx, key_size, 100);
     for (i = 0;i < sharecount; i++) {
       snprintf( prompt, 64, "Enter Password  [%d/%d]: ", i + 1, sharecount);
       snprintf(vprompt, 64, "Verify Password [%d/%d]: ", i + 1, sharecount);

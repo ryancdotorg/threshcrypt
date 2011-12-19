@@ -38,11 +38,17 @@ share 1..N {
 }
 */
 
+#define THRCR_MAGIC        {'T','h','r','C','r','\r','\n','\0'}
+#define THRCR_MAGIC_LEN    8
+
+#define THRCR_VERSION      {'\0','\0','\0','\1'}
+#define THRCR_VERSION_LEN  4
+
 /* file format offset macros */
 /* The nested additions should get merged by the compiler */
 #define HDR_MAGIC(x)       (x)
-#define HDR_VERSION(x)     HDR_MAGIC(x     + 8)
-#define HDR_CIPHER(x)      HDR_VERSION(x   + 4)
+#define HDR_VERSION(x)     HDR_MAGIC(x     + THRCR_MAGIC_LEN)
+#define HDR_CIPHER(x)      HDR_VERSION(x   + THRCR_VERSION_LEN)
 #define HDR_HASH(x)        HDR_CIPHER(x    + 1)
 #define HDR_KDF(x)         HDR_HASH(x      + 1)
 #define HDR_NSHARES(x)     HDR_KDF(x       + 1)
