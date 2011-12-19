@@ -10,8 +10,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <termios.h>
-#include <time.h>
+
+#include <tomcrypt.h>
 
 #include "common.h"
 #include "util.h"
@@ -55,20 +55,23 @@ void memxor(unsigned char *p1, const unsigned char *p2, size_t size) {
 
 void fill_rand(unsigned char *buffer,
                unsigned int count) {
-  size_t n;
-  FILE *devrandom;
+  unsigned long n;
 
-  devrandom = fopen("/dev/urandom", "rb");
-  if (!devrandom) {
-    perror("Unable to read /dev/urandom");
-    abort();
+  if ((n = rng_get_bytes(buffer, count, NULL)) < count) {
+    fprintf(stderr, "Short read from rng; requested %d bytes, got %ld bytes\n", count, n);
+    exit(EXIT_FAILURE);
   }
-  n = fread(buffer, 1, count, devrandom);
-  if (n < count) {
-      perror("Short read from /dev/urandom");
-      abort();
+}
+
+void fill_prng(unsigned char *buffer,
+               unsigned int count) {
+  extern prng_state prng;
+  unsigned long n;
+
+  if ((n = fortuna_read(buffer, count, &prng)) < count) {
+    fprintf(stderr, "Short read from prng; requested %d bytes, got %ld bytes\n", count, n);
+    exit(EXIT_FAILURE);
   }
-  fclose(devrandom);
 }
 
 /* Free header memory, wiping sensitive parts */

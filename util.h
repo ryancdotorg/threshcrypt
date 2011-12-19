@@ -18,6 +18,7 @@ void _wipe_free(void **, size_t, const char *, int);
 void memxor(unsigned char *, const unsigned char *, size_t);
 
 void fill_rand(unsigned char *, unsigned int);
+void fill_prng(unsigned char *, unsigned int);
 
 void free_header(header_data_t *);
 

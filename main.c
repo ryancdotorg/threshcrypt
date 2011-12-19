@@ -34,6 +34,8 @@ struct termios orig_term_set;
 
 static char* progname;
 
+prng_state prng;
+
 void sigint_handle(int sig) {
   if (sig == SIGINT) { load_term(&orig_term_set); fprintf(stderr, "\n"); }
   exit(0);
@@ -106,20 +108,42 @@ int main(int argc, char **argv) {
   /* Seed the PRNG with */
   srandom( time(NULL) ^ (getpid() << (sizeof(int) * 4)) );
 
-#ifndef NONRANDOM
-  if (access("/dev/urandom", R_OK) == 0) {
-    gfshare_fill_rand = fill_rand;
-  } else {
-    fprintf(stderr, "\
-%s: Cannot access /dev/urandom, so using rand() instead (not secure!)\n\
-", progname);
+  /* Setup fortuna PRNG */
+  if (register_prng(&fortuna_desc) == -1) {
+    fprintf(stderr, "Error registering Fortuna\n");
+    exit(EXIT_FAILURE);
   }
-#else
-  fprintf(stderr, "\
-%s: WARNING: DEBUG BUILD WITH HARDCODED PRNG SEED!\n\
-", progname);
-  srandom(1);
-#endif
+
+  if ((err = rng_make_prng(128, find_prng("fortuna"), &prng, NULL)) != CRYPT_OK) {
+    fprintf(stderr, "Error starting Fortuna: %s\n", error_to_string(err));
+    exit(EXIT_FAILURE);
+  }
+
+  if ((err = fortuna_ready(&prng)) != CRYPT_OK) {
+    fprintf(stderr, "Fortuna not ready: %s\n", error_to_string(err));
+    exit(EXIT_FAILURE);
+  }
+  /* end fortuna setup */
+
+  /* register other tomcrypt algorithms */
+  if (register_cipher(&aes_desc) == -1) {
+    fprintf(stderr, "Failed to register AES\n");
+    exit(EXIT_FAILURE);
+  }
+
+  if (register_hash(&sha1_desc) == -1) {
+    fprintf(stderr, "Failed to register SHA-1\n");
+    exit(EXIT_FAILURE);
+  }
+
+  if (register_hash(&sha256_desc) == -1) {
+    fprintf(stderr, "Failed to register SHA-256\n");
+    exit(EXIT_FAILURE);
+  }
+  /* end tomcrypt algorithm registration */
+
+  /* Set the prng for gfshare */
+  gfshare_fill_rand = fill_prng;
 
   /* parse command line arguments */
   while( (optnr = getopt(argc, argv, OPTSTRING)) != -1 ) {
@@ -238,21 +262,6 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
 
   if (mode == MODE_UNKNOWN)
     mode = MODE_DECRYPT;
-
-  if (register_cipher(&aes_desc) == -1) {
-    fprintf(stderr, "Failed to register AES\n");
-    exit(EXIT_FAILURE);
-  }
-
-  if (register_hash(&sha1_desc) == -1) {
-    fprintf(stderr, "Failed to register SHA-1\n");
-    exit(EXIT_FAILURE);
-  }
-
-  if (register_hash(&sha256_desc) == -1) {
-    fprintf(stderr, "Failed to register SHA-256\n");
-    exit(EXIT_FAILURE);
-  }
 
   save_term(&orig_term_set);
   signal(SIGINT, sigint_handle);
@@ -398,7 +407,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         share_data_t *share = &(header.shares[i]);
         share->iter = MAX(1024, base_iter ^ (random() & 0x01ff));
         share->key  = safe_malloc(key_size);
-        gfshare_fill_rand(share->salt, salt_size);
+        fill_prng(share->salt, salt_size);
         pbkdf2(pass, pass_ret, share->salt, salt_size, share->iter, hash_idx, share->key, &key_size);
         memset(pass, 0, sizeof(pass));
       }
@@ -421,6 +430,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
      * written as an authenticated EoF marker                              */
     ssize_t len;
     unsigned char *IV = NULL;
+    assert(header.master_key != NULL);
     do {
       if ((len = read(in_fd, buf, BUFFER_SIZE)) < 0) {
         perror("Input file read error: ");
