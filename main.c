@@ -383,7 +383,15 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         ret = THRCR_DECERR;
         break;
       }
-      write(out_fd, buf, dlen);
+      if ((err = write(out_fd, buf, dlen) < (ssize_t)dlen)) {
+        if (err == -1) {
+          perror("Error writing output: ");
+        } else {
+          fprintf(stderr, "Error: Short write to output\n");
+        }
+        ret = THRCR_WRITEERR;
+        break;
+      }
     } while (dlen > 0);
     memset(buf, 0, BUFFER_SIZE);
     free_header(&header);
@@ -465,9 +473,17 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       }
       uint32_t ulen = len;
       STORE32H(ulen, blklen);
-      write(out_fd, blklen,   4);
-      write(out_fd, buf, len);
-      write(out_fd, blkmac, header.hmac_size);
+      if ((err = write(out_fd, blklen, 4)                < 4) ||
+          (err = write(out_fd, buf, len)                 < (ssize_t)len) ||
+          (err = write(out_fd, blkmac, header.hmac_size) < (ssize_t)(header.hmac_size))) {
+        if (err == -1) {
+          perror("Error writing output: ");
+        } else {
+          fprintf(stderr, "Error: Short write to output\n");
+        }
+        ret = THRCR_WRITEERR;
+        break;
+      }
       /* The final block is zero len and acts as an authenticate EoF marker */
     } while (len > 0);
     memset(buf, 0, BUFFER_SIZE);

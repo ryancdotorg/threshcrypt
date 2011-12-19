@@ -108,7 +108,7 @@ int write_header(header_data_t *header, int fd) {
   }
 
   if (write(fd, buf, HEADER_SIZE) < HEADER_SIZE) {
-    fprintf(stderr, "Short fwrite on header\n");
+    fprintf(stderr, "Short write on header\n");
     return THRCR_WRITEERR;
   }
 
