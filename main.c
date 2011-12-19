@@ -398,7 +398,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         share_data_t *share = &(header.shares[i]);
         share->iter = MAX(1024, base_iter ^ (random() & 0x01ff));
         share->key  = safe_malloc(key_size);
-        gfshare_fill_rand(share->salt, salt_size);
+        fill_rand(share->salt, salt_size);
         pbkdf2(pass, pass_ret, share->salt, salt_size, share->iter, hash_idx, share->key, &key_size);
         memset(pass, 0, sizeof(pass));
       }
