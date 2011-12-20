@@ -1,6 +1,6 @@
 DESCRIPTION
 
-threshcrypt - A file encryption program using a cryptographic threshold scheme
+threshcrypt - A password-based implementation of threshold encryption
 
 LICENSE
 
@@ -10,13 +10,12 @@ INSTALL
 
 Just run 'make' and copy the binary somewhere.  You can also run 'make static'
 to build a staticly linked version, which will be compressed with UPX if it is
-installed in you $PATH. I haven't yet made any attempts to make this software
-portable - it has been tested only with gcc and glibc on Linux/x86_64.
+installed in your $PATH.  Tested on x86_64 & i386 Linux with gcc and glibc. t
 
 USAGE
 
 Encrypt:
-threshcrypt -n threshold -m shares input_file [output_file]
+threshcrypt -t threshold -n shares input_file [output_file]
 
 Decrypt:
 threshcrypt input_file [output_file]
