@@ -90,6 +90,4 @@ TODO
 
 * Option to use scrypt instead of pbkdf2
 * mlock memory regions that will contain key material before using them
-* Add a wipe/free routine for the header_data_t structure
-* Wipe the master key from memory before exiting
 * Do user interaction on /dev/tty so that data can be accepted on stdin

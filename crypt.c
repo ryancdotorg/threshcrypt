@@ -112,6 +112,8 @@ int crypt_data(const unsigned char *data_in,
     /* This is a hack - the tomcrypt api doesn't have a sanctioned api for *
      * getting the internal counter state. We just read it out of the struct. */
     memcpy(*IV_start, ctr.ctr, IV_size);
+  } else {
+    safe_free(IV);
   }
   return ret;
 }

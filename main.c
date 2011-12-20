@@ -36,9 +36,16 @@ static char* progname;
 
 prng_state prng;
 
-void sigint_handle(int sig) {
+/* global so that it signal/atexit handlers can get at it */
+static header_data_t header;
+
+static void cleanup(void) {
+  free_header(&header);
+}
+
+static void sigint_handle(int sig) {
   if (sig == SIGINT) { load_term(&orig_term_set); fprintf(stderr, "\n"); }
-  exit(0);
+  exit(EXIT_FAILURE);
 }
 
 /* Calculate the number of iterations needed to take a given amount of time */
@@ -52,7 +59,7 @@ static int pbkdf2_itertime(int hash_idx, size_t size, int msec) {
 
   int iter = 1617; /* this number is of no significance */
   float duration = 0; /* seconds */
-  float spi; /* seconds per iter */
+  float spi = 0; /* seconds per iter */
 
   /* loop until we find a value for iter that takes at least 0.10 seconds */
   while (duration < 0.10) { /* minimum time */
@@ -61,31 +68,43 @@ static int pbkdf2_itertime(int hash_idx, size_t size, int msec) {
     gettimeofday(&time2, NULL);
     duration = (time2.tv_sec - time1.tv_sec) + (float)(time2.tv_usec - time1.tv_usec) / 1000000;
     spi = 1000 * duration / iter; /* calculate seconds per iter */
-    /*fprintf(stderr, "PBKDF2:%6.3f,%6d,%10.3e\n", duration, iter, spi);*/
+    /*fprintf(stderr, "PBKDF2: %6.3fs,%7diter,%10.3e\n", duration, iter, spi);*/
     /* set iter to a value expected to take around 0.12 seconds*/
     iter = 0.12 * 1000 / spi;
   }
   safe_free(buf);
-  if (msec > INT_MAX * spi) {
-    fprintf(stderr, "PBKDF2:%6.3f,%6d\n", (float) msec / 1000, INT_MAX);
+  if (msec > INT_MAX * spi) { /* return INT_MAX instead of undefined behaviour */
+    fprintf(stderr, "PBKDF2: ??.???s,%7diter\n", INT_MAX);
     return INT_MAX;
   }
-  fprintf(stderr, "PBKDF2:%6.3f,%6d\n", (float) msec / 1000, (int)(msec / spi));
+  fprintf(stderr, "PBKDF2: %6.3fs,%7diter\n", (float) msec / 1000, (int)(msec / spi));
   return (int)(msec / spi);
 }
 
 void usage(FILE* stream) {
   fprintf(stream, "\
-Usage: %s [-i iterations] [-n sharecount] [-t threshold] infile [outfile]\n\
-  where sharecount is the number of shares to build.\n\
-  where threshold is the number of shares needed to recombine.\n\
+Usage: threshcrypt [options] infile [outfile]\n\
 \n\
-The sharecount option defaults to %d.\n\
+Where options are:\n\
+\n\
+  -h    show this screen (all other options ignored)\n\
+  -V    print version infomation (all other options ignored)\n\
+\n\
+  -d    do decryption (default if no options specified)\n\
+  -e    do encryption (default if any of the following options are set)\n\
+\n\
+  -n    total number of passwords to enter\n\
+  -t    minimum number of passwords that will be required to decrypt\n\
+\n\
+  -m    time in milliseconds to iterate for pbkdf2\n\
+  -i    number of iterations to use for pbkdf2\n\
+\n\
+The shares option defaults to %d.\n\
 The threshold option defaults to %d.\n\
-", progname, DEFAULT_SHARECOUNT, DEFAULT_THRESHOLD );
+", DEFAULT_SHARECOUNT, DEFAULT_THRESHOLD );
 }
 
-#define OPTSTRING "b:i:t:n:m:o:hved"
+#define OPTSTRING "b:i:t:n:m:hVed"
 int main(int argc, char **argv) {
   unsigned int sharecount = DEFAULT_SHARECOUNT;
   unsigned int threshold  = DEFAULT_THRESHOLD;
@@ -96,19 +115,26 @@ int main(int argc, char **argv) {
 
   unsigned char buf[BUFFER_SIZE];
 
-  unsigned int i;
-  int ret, err;
-
   char *in_file, *out_file;
   int in_fd, out_fd;
 
   char *endptr;
   int optnr;
   
-  header_data_t header;
-  /* zero the memory of the struct - sets all pointers to NULL */
+  unsigned int i;
+  int ret, err;
+  ret = err = 0;
+  
+  /* zero the memory of header - sets all pointers to NULL */
   memset(&header, 0, sizeof(header));
   
+  /* make sure key material is wiped on exit */ 
+  atexit(cleanup);
+
+  /* set up signal handlers */
+  save_term(&orig_term_set);
+  signal(SIGINT, sigint_handle);
+
   progname = argv[0];
   /* Seed the PRNG with */
   srandom( time(NULL) ^ (getpid() << (sizeof(int) * 4)) );
@@ -153,12 +179,12 @@ int main(int argc, char **argv) {
   /* parse command line arguments */
   while( (optnr = getopt(argc, argv, OPTSTRING)) != -1 ) {
     switch( optnr ) {
-    case 'v':
-      fprintf( stdout, "%s", "\
-Copyright 2012 Ryan Castellucci <code@ryanc.org>\n\
+    case 'V':
+      fprintf(stdout, "\
+threshcrypt %s, Copyright 2012 Ryan Castellucci <code@ryanc.org>\n\
 This is free software; see the source for copying conditions.  There is NO\n\
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
-" );
+", THRCR_VERSION_STR);
       return 0;
       break;
     case 'h':
@@ -282,9 +308,6 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
   if (mode == MODE_UNKNOWN)
     mode = MODE_DECRYPT;
 
-  save_term(&orig_term_set);
-  signal(SIGINT, sigint_handle);
-
   size_t key_size = key_bits / 8;
   size_t salt_size = SALT_SIZE;
   size_t hmac_size = HMAC_SIZE;
@@ -303,22 +326,27 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       fprintf(stderr, "%s: Error reading header of '%s': too small\n", progname, in_file);
       return THRCR_ERROR;
     }
-    if ((err = parse_header(buf, &header)) != 0) {
+    if ((err = parse_header(buf, &header)) != THRCR_OK) {
       switch(err) {
         case THRCR_NOMAGIC:
           fprintf(stderr, "%s: Error reading header of '%s': no magic\n", progname, in_file);
+          return THRCR_NOMAGIC;
           break;
         case THRCR_BADDATA:
           fprintf(stderr, "%s: Error reading header of '%s': bad data\n", progname, in_file);
+          return THRCR_BADDATA;
           break;
       }
+      /* shouldn't be reached */
+      fprintf(stderr, "%s: Unexpected return for parse_header: %d\n", progname, err);
+      return THRCR_ERROR;
     }
 
     /* unlock shares */
     int unlocked = 0;
     while (unlocked < header.thresh) {
       fprintf(stderr, "More passwords are required to meet decryption threshold.\n");
-      snprintf( prompt, 64, "Enter any remaining share password [%d/%d]: ", unlocked, header.thresh);
+      snprintf(prompt, 64, "Enter any remaining share password [%d/%d]: ", unlocked, header.thresh);
       pass_ret = get_pass(pass, 128, prompt, NULL, NULL, 0);
       if (pass_ret < 0) {
         fprintf(stderr, "Password entry failed.\n");
@@ -349,12 +377,15 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       free_header(&header);
       exit(EXIT_FAILURE);
     }
+    /* share ptxt/keys no longer needed */
+    wipe_shares(&header);
 
     /* open output file */
     if (out_file != NULL) {
       if ((out_fd = open(out_file, O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0) {
         fprintf(stderr, "%s: Failed to open '%s' for writing: ", progname, out_file);
         perror("");
+        free_header(&header);
         exit(EXIT_FAILURE);
       }
     } else {
@@ -410,7 +441,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     memset(buf, 0, BUFFER_SIZE);
     free_header(&header);
     return ret;
-  }
+  } /* end MODE_DECRYPT */
 
   if (mode == MODE_ENCRYPT) {
     unsigned char magic[THRCR_MAGIC_LEN]     = THRCR_MAGIC;
@@ -455,6 +486,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       }
     }
     ret = tc_gfsplit(&header);
+    /* master_key generated and set, shares should be clean */
 
     /* open output file */
     if (out_file != NULL) {

@@ -154,7 +154,7 @@ int tc_gfsplit(header_data_t *header) {
     }
     fprintf(stderr, "\n");
 #endif /* CRYPTODEBUG */
-#endif
+#endif /* TESTDECRYPT */
     wipe_free(share->ptxt, header->share_size);
     wipe_free(share->key,  header->key_size);
 #ifdef CRYPTODEBUG
@@ -164,7 +164,6 @@ int tc_gfsplit(header_data_t *header) {
     }
     fprintf(stderr, "\n\n");
 #endif /* CRYPTODEBUG */
-
   }
 
   /* wipe sensitive data and free memory */
