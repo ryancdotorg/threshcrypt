@@ -21,6 +21,7 @@
 #define MAX_ITER_MS   60000
 #define MAX_KEY_SIZE     64
 #define MAX_HMAC_SIZE    32
+#define MAX_SHARE_SIZE   72
 
 #define SUBKEY_ITER      16
 

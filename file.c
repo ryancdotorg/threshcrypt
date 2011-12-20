@@ -43,8 +43,8 @@ int parse_header(unsigned char *buf, header_data_t *header) {
   memcpy(&(header->share_size), HDR_SHARE_SIZE(buf), 1);
   
   /* Sanity check some critical values */
-  if (header->key_size   > 64 || header->hmac_size   > 32 ||
-      header->share_size > 80 || header->nshares     <  2 ||
+  if (header->key_size   > MAX_KEY_SIZE   || header->hmac_size > MAX_HMAC_SIZE ||
+      header->share_size > MAX_SHARE_SIZE || header->nshares   <  2 ||
       header->thresh < 2 || header->thresh > header->nshares)
     return THRCR_BADDATA;
 
