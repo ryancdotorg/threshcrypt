@@ -76,29 +76,19 @@ int crypt_data(const unsigned char *data_in,
     ret = -1; goto crypt_data_cleanup;
   }
 
-  switch (mode) {
-    case MODE_DECRYPT: 
-      if ((err = ctr_decrypt(data_in, data_out, data_size, &ctr)) != CRYPT_OK) {
-        fprintf(stderr, "ctr_decrypt error: %s\n", error_to_string(err));
-        ret = -1;
-        goto crypt_data_cleanup;
-      }
-      break;
-    case MODE_ENCRYPT: 
-      if ((err = ctr_encrypt(data_in, data_out, data_size, &ctr)) != CRYPT_OK) {
-        fprintf(stderr, "ctr_encrypt error: %s\n", error_to_string(err));
-        ret = -1; goto crypt_data_cleanup;
-      }
-      if (data_new_hmac != NULL) {
-        if ((err = hmac_memory(hash_idx,
-                               data_hkey, data_hkey_size,
-                               data_out, data_size, data_new_hmac,
-                               (long unsigned int *)&data_hmac_size)) != CRYPT_OK) {
-          fprintf(stderr, "hmac error: %s\n", error_to_string(err)); 
-          ret = -1; goto crypt_data_cleanup;
-        }
-      }
-      break;
+  /* ctr_encrypt is used for both encryption and decryption */
+  if ((err = ctr_encrypt(data_in, data_out, data_size, &ctr)) != CRYPT_OK) {
+    fprintf(stderr, "ctr_encrypt error: %s\n", error_to_string(err));
+    ret = -1; goto crypt_data_cleanup;
+  }
+  if (mode == MODE_ENCRYPT && data_new_hmac != NULL) {
+    if ((err = hmac_memory(hash_idx,
+                           data_hkey, data_hkey_size,
+                           data_out, data_size, data_new_hmac,
+                           (long unsigned int *)&data_hmac_size)) != CRYPT_OK) {
+      fprintf(stderr, "hmac error: %s\n", error_to_string(err)); 
+      ret = -1; goto crypt_data_cleanup;
+    }
   }
 
   /* before returning, make sure key material isn't in memory */
