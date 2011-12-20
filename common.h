@@ -7,7 +7,7 @@
 #ifndef THRESHCRYPT_COMMON_H_
 #define THRESHCRYPT_COMMON_H_
 
-#define THRCR_VERSION_STR "0.01" 
+#define THRCR_VERSION_STR "0.0.1.0" 
 
 #define MODE_UNKNOWN 0
 #define MODE_ENCRYPT 1
