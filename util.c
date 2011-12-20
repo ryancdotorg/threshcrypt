@@ -93,44 +93,46 @@ void fill_prng(unsigned char *buffer,
 void free_header(header_data_t *header) {
   int i;
 
-  assert(header != NULL);
-  assert(header->shares != NULL);
-  /* wipe/free pointers within each share */
-  for (i = 0; i < header->nshares;i++) {
-    share_data_t *share;
-    share = &(header->shares[i]);
+  if (header != NULL) {
+    if (header->shares != NULL) {
+      /* wipe/free pointers within each share */
+      for (i = 0; i < header->nshares;i++) {
+        share_data_t *share;
+        share = &(header->shares[i]);
 
-    if (share->key != NULL)
-      wipe_free(share->key, header->key_size);
-    if (share->ptxt != NULL)
-      wipe_free(share->ptxt, header->share_size);
-    if (share->ctxt != NULL)
-      safe_free(share->ctxt);
-    if (share->hmac != NULL)
-      safe_free(share->hmac);
+        if (share->key != NULL)
+          wipe_free(share->key, header->key_size);
+        if (share->ptxt != NULL)
+          wipe_free(share->ptxt, header->share_size);
+        if (share->ctxt != NULL)
+          safe_free(share->ctxt);
+        if (share->hmac != NULL)
+          safe_free(share->hmac);
+      }
+      /* free memory from shares */
+      safe_free(header->shares);
+    }
+    if (header->master_key != NULL)
+      wipe_free(header->master_key, header->key_size);
+    if (header->master_hmac != NULL)
+      safe_free(header->master_hmac);
   }
-  /* free memory from shares */
-  safe_free(header->shares);
-  if (header->master_key != NULL)
-    wipe_free(header->master_key, header->key_size);
-  if (header->master_hmac != NULL)
-    safe_free(header->master_hmac);
 }
 
 void wipe_shares(header_data_t *header) {
   int i;
 
-  assert(header != NULL);
-  assert(header->shares != NULL);
-  /* wipe/free pointers within each share */
-  for (i = 0; i < header->nshares;i++) {
-    share_data_t *share;
-    share = &(header->shares[i]);
+  if (header != NULL && header->shares != NULL) {
+    /* wipe/free pointers within each share */
+    for (i = 0; i < header->nshares;i++) {
+      share_data_t *share;
+      share = &(header->shares[i]);
 
-    if (share->key != NULL)
-      wipe_free(share->key, header->key_size);
-    if (share->ptxt != NULL)
-      wipe_free(share->ptxt, header->share_size);
+      if (share->key != NULL)
+        wipe_free(share->key, header->key_size);
+      if (share->ptxt != NULL)
+        wipe_free(share->ptxt, header->share_size);
+    }
   }
 }
 
