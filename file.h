@@ -41,7 +41,7 @@ share 1..N {
 #define THRCR_MAGIC        {'T','h','r','C','r','\r','\n','\0'}
 #define THRCR_MAGIC_LEN    8
 
-#define THRCR_VERSION      {'\0','\0','\0','\1'}
+#define THRCR_VERSION      {'\0','\0','\1','\x00'}
 #define THRCR_VERSION_LEN  4
 
 /* file format offset macros */
