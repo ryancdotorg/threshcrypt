@@ -430,7 +430,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       }
       if ((err = write(out_fd, buf, dlen) < (ssize_t)dlen)) {
         if (err == -1) {
-          perror("Error writing output: ");
+          perror("Error writing output");
         } else {
           fprintf(stderr, "Error: Short write to output\n");
         }
@@ -505,7 +505,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     assert(header.master_key != NULL);
     do {
       if ((len = read(in_fd, buf, BUFFER_SIZE)) < 0) {
-        perror("Input file read error: ");
+        perror("Input file read error");
         exit(EXIT_FAILURE);
       }
       unsigned char blklen[4];
@@ -525,7 +525,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
           (err = write(out_fd, buf, len)                 < (ssize_t)len) ||
           (err = write(out_fd, blkmac, header.hmac_size) < (ssize_t)(header.hmac_size))) {
         if (err == -1) {
-          perror("Error writing output: ");
+          perror("Error writing output");
         } else {
           fprintf(stderr, "Error: Short write to output\n");
         }
