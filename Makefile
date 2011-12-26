@@ -10,12 +10,12 @@ threshcrypt: $(OBJECTS)
 	$(COMPILE) $(OBJECTS) $(LIBS) -o threshcrypt
 
 threshcrypt_static: $(OBJECTS)
-	$(COMPILE) -Os -static $(OBJECTS) $(LIBS) -o threshcrypt_static
+	$(COMPILE) -static $(OBJECTS) $(LIBS) -o threshcrypt_static
 	strip threshcrypt_static
-	which upx && upx --best threshcrypt_static || true
+	@which upx && upx --best threshcrypt_static || true
 
 threshcrypt_embed: $(OBJECTS)
-	$(COMPILE) -Os -static $(OBJECTS) -Wl,-Bstatic $(LIBS) -Wl,-Bdynamic -o threshcrypt_embed
+	$(COMPILE) -static $(OBJECTS) -Wl,-Bstatic $(LIBS) -Wl,-Bdynamic -o threshcrypt_embed
 
 static: threshcrypt_static
 
