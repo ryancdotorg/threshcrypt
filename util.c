@@ -74,7 +74,7 @@ void secmem_init(secmem_t *secmem) {
   secmem->pos = 0;
   secmem->lck = 0;
   secmem->len = SECMEM_SIZE;
-  fprintf(stderr, "secmem_init: %p + %d\n", secmem->ptr, secmem->off);
+  /* fprintf(stderr, "secmem_init: %p + %d\n", secmem->ptr, secmem->off); */
 }
 
 /* There are no corrosponding 'free' or 'realloc' functions. */
@@ -92,8 +92,7 @@ void * secmem_alloc(secmem_t *secmem, size_t size) {
   }
 #ifdef _POSIX_MEMLOCK_RANGE
   while (secmem->pos + size > secmem->lck) {
-    fprintf(stderr, "secmem_alloc: locking %d bytes @ %p+0x%04x\n", pagesize, secmem->ptr + secmem->off, secmem->lck); /* DEBUG */
-  int pagesize = sysconf(_SC_PAGESIZE);
+    /* fprintf(stderr, "secmem_alloc: locking %d bytes @ %p+0x%04x\n", pagesize, secmem->ptr + secmem->off, secmem->lck); DEBUG */
     if (mlock(secmem->ptr + secmem->off + secmem->lck, pagesize) != 0) {
       fprintf(stderr, "secmem_alloc: could not lock %d bytes (%d already locked)\n", pagesize, secmem->lck);
       perror("");
@@ -103,7 +102,7 @@ void * secmem_alloc(secmem_t *secmem, size_t size) {
   }
 #endif
   MEMZERO(ptr, size);
-  fprintf(stderr, "secmem_alloc: %p-%p\n", ptr, (char *)ptr + size - 1);
+  /* fprintf(stderr, "secmem_alloc: %p-%p\n", ptr, (char *)ptr + size - 1); */
   return ptr;
 }
 
