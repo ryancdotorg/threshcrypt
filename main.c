@@ -41,7 +41,7 @@ static header_data_t *header;
 static secmem_t      *secmem;
 
 static void cleanup(void) {
-  fprintf(stderr, "Freeing header\n");
+  /* fprintf(stderr, "Freeing header\n"); */
   free_header(header);
 }
 
