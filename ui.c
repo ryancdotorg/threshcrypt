@@ -12,7 +12,11 @@
 #include <stdint.h>
 #include <string.h>
 
+/* for mlock */
+#include <sys/mman.h>
+
 #include "common.h"
+#include "util.h"
 #include "ui.h"
 
 int load_term(struct termios *termios_p) {
@@ -36,7 +40,13 @@ int get_pass(char *pass, uint8_t pass_size, const char *prompt,
   struct termios old_term, new_term;
   uint8_t i, j;
   int chr;
-  char vpass[256];
+  char *vpass = safe_malloc(pass_size + sizeof(char));
+#ifdef _POSIX_MEMLOCK_RANGE
+  if (mlock(vpass, pass_size) != 0) {
+    fprintf(stderr, "WARNING: mlock failed at %s:%d - ", __FILE__, __LINE__);
+    perror("");
+  }
+#endif
 
   assert(pass_size > 1);
   do {
@@ -73,8 +83,11 @@ int get_pass(char *pass, uint8_t pass_size, const char *prompt,
       fprintf(stderr, "\033[0G\033[2K");
       j = get_pass(vpass, pass_size, vprompt, NULL, NULL, 0);
       if (j != i || memcmp(pass, vpass, i) != 0) {
-        memset(vpass, 0, sizeof(vpass));
-        memset(pass,  0, sizeof(pass));
+        MEMZERO(vpass, pass_size);
+#ifdef _POSIX_MEMLOCK_RANGE
+        munlock(vpass, pass_size);
+#endif
+        MEMZERO(pass, pass_size);
         if (verify > 1) {
           fprintf(stderr, "%s\n", rprompt);
           verify--;
@@ -82,7 +95,10 @@ int get_pass(char *pass, uint8_t pass_size, const char *prompt,
           return -1;
         }
       } else {
-        memset(vpass, 0, sizeof(vpass));
+        MEMZERO(vpass, pass_size);
+#ifdef _POSIX_MEMLOCK_RANGE
+        munlock(vpass, pass_size);
+#endif
         assert(i == j);
         assert(i == strlen(pass));
         return i;

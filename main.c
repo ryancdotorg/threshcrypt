@@ -36,15 +36,18 @@ static char* progname;
 
 prng_state prng;
 
-/* global so that it signal/atexit handlers can get at it */
-static header_data_t header;
+/* globals so that signal/atexit handlers can get at them */
+static header_data_t *header;
+static secmem_t      *secmem;
 
 static void cleanup(void) {
-  free_header(&header);
+  /* fprintf(stderr, "Freeing header\n"); */
+  free_header(header);
 }
 
-static void sigint_handle(int sig) {
+static void sig_handle(int sig) {
   if (sig == SIGINT) { load_term(&orig_term_set); fprintf(stderr, "\n"); }
+  fprintf(stderr, "%s caught, exiting\n", strsignal(sig));
   exit(EXIT_FAILURE);
 }
 
@@ -124,16 +127,24 @@ int main(int argc, char **argv) {
   unsigned int i;
   int ret, err;
   ret = err = 0;
-  
-  /* zero the memory of header - sets all pointers to NULL */
-  memset(&header, 0, sizeof(header));
+
+  /* malloc the header and secmem structs */
+  header = safe_malloc(sizeof(header_data_t));
+  secmem = safe_malloc(sizeof(secmem_t));
   
   /* make sure key material is wiped on exit */ 
   atexit(cleanup);
 
   /* set up signal handlers */
   save_term(&orig_term_set);
-  signal(SIGINT, sigint_handle);
+  /* catch some signals we can */
+  signal(SIGINT, sig_handle);
+  signal(SIGHUP, sig_handle);
+  signal(SIGUSR1, sig_handle);
+  signal(SIGUSR2, sig_handle);
+  signal(SIGTERM, sig_handle);
+  signal(SIGPIPE, sig_handle);
+  signal(SIGABRT, sig_handle);
 
   progname = argv[0];
   /* Seed the PRNG with */
@@ -313,6 +324,9 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
   size_t hmac_size = HMAC_SIZE;
   size_t share_size = key_size + 1;
 
+  /* secmem_init(secmem); */
+  header->secmem = secmem;
+
   unsigned char pass[256];
   unsigned char prompt[64];
   unsigned char vprompt[64];
@@ -326,7 +340,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       fprintf(stderr, "%s: Error reading header of '%s': too small\n", progname, in_file);
       return THRCR_ERROR;
     }
-    if ((err = parse_header(buf, &header)) != THRCR_OK) {
+    if ((err = parse_header(buf, header)) != THRCR_OK) {
       switch(err) {
         case THRCR_NOMAGIC:
           fprintf(stderr, "%s: Error reading header of '%s': no magic\n", progname, in_file);
@@ -344,9 +358,9 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
 
     /* unlock shares */
     int unlocked = 0;
-    while (unlocked < header.thresh) {
+    while (unlocked < header->thresh) {
       fprintf(stderr, "More passwords are required to meet decryption threshold.\n");
-      snprintf(prompt, 64, "Enter any remaining share password [%d/%d]: ", unlocked, header.thresh);
+      snprintf(prompt, 64, "Enter any remaining share password [%d/%d]: ", unlocked, header->thresh);
       pass_ret = get_pass(pass, 128, prompt, NULL, NULL, 0);
       if (pass_ret < 0) {
         fprintf(stderr, "Password entry failed.\n");
@@ -357,35 +371,33 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         assert(pass_ret == (int)strlen(pass));
 
         int unlock_ret;
-        if ((unlock_ret = unlock_shares(pass, pass_ret, &header))){
+        if ((unlock_ret = unlock_shares(pass, pass_ret, header))){
           unlocked += unlock_ret;
         }
-        memset(pass, 0, sizeof(pass));
+        MEMZERO(pass, sizeof(pass));
       }
     }
     fprintf(stderr, "Decrypting data...\n");
     /* Recover master key */
-    tc_gfcombine(&header);
+    tc_gfcombine(header);
 
-    assert(header.master_key != NULL);
+    assert(header->master_key != NULL);
 
     /* verify master key */
-    size_t hmac_size = header.hmac_size;
-    if ((err = pbkdf2_vrfy(header.master_key, header.key_size, header.master_salt, SALT_SIZE,
-                           SUBKEY_ITER, hash_idx, header.master_hmac, &hmac_size)) != CRYPT_OK) {
+    size_t hmac_size = header->hmac_size;
+    if ((err = pbkdf2_vrfy(header->master_key, header->key_size, header->master_salt, SALT_SIZE,
+                           SUBKEY_ITER, hash_idx, header->master_hmac, &hmac_size)) != CRYPT_OK) {
       fprintf(stderr, "Master key verification failed!\n");
-      free_header(&header);
       exit(EXIT_FAILURE);
     }
     /* share ptxt/keys no longer needed */
-    wipe_shares(&header);
+    wipe_shares(header);
 
     /* open output file */
     if (out_file != NULL) {
       if ((out_fd = open(out_file, O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0) {
         fprintf(stderr, "%s: Failed to open '%s' for writing: ", progname, out_file);
         perror("");
-        free_header(&header);
         exit(EXIT_FAILURE);
       }
     } else {
@@ -416,21 +428,21 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         ret = THRCR_READERR;
         break;
       }
-      if ((len = read(in_fd, blkmac, header.hmac_size)) < header.hmac_size) {
+      if ((len = read(in_fd, blkmac, header->hmac_size)) < header->hmac_size) {
         fprintf(stderr, "%s: Error: short read of blockmac in '%s'\n", progname, in_file);
         ret = THRCR_READERR;
         break;
       }
       if ((err = decrypt_block(buf, buf, dlen,
-                               header.master_key, header.key_size,
-                               blkmac, header.hmac_size, IV)) != THRCR_OK) {
+                               header->master_key, header->key_size,
+                               blkmac, header->hmac_size, IV)) != THRCR_OK) {
         fprintf(stderr, "Error: Failed to decrypt block\n");
         ret = THRCR_DECERR;
         break;
       }
       if ((err = write(out_fd, buf, dlen) < (ssize_t)dlen)) {
         if (err == -1) {
-          perror("Error writing output: ");
+          perror("Error writing output");
         } else {
           fprintf(stderr, "Error: Short write to output\n");
         }
@@ -438,8 +450,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         break;
       }
     } while (dlen > 0);
-    memset(buf, 0, BUFFER_SIZE);
-    free_header(&header);
+    MEMZERO(buf, BUFFER_SIZE);
     return ret;
   } /* end MODE_DECRYPT */
 
@@ -447,20 +458,20 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     unsigned char magic[THRCR_MAGIC_LEN]     = THRCR_MAGIC;
     unsigned char version[THRCR_VERSION_LEN] = THRCR_VERSION;
 
-    memcpy(header.magic,   magic,   THRCR_MAGIC_LEN);
-    memcpy(header.version, version, THRCR_VERSION_LEN);
-    header.cipher      = 1; /* Hardcoded for now */
-    header.hash        = 1; /* Hardcoded for now */
-    header.kdf         = 1; /* Hardcoded for now */
-    header.nshares     = sharecount;
-    header.thresh      = threshold;
-    header.key_size    = key_size;
-    header.hmac_size   = hmac_size;
-    header.share_size  = share_size;
-    header.master_iter = SUBKEY_ITER;
-    header.master_hmac = safe_malloc(hmac_size);
-    header.master_key  = safe_malloc(key_size);
-    header.shares      = safe_malloc(sharecount * sizeof(share_data_t));
+    memcpy(header->magic,   magic,   THRCR_MAGIC_LEN);
+    memcpy(header->version, version, THRCR_VERSION_LEN);
+    header->cipher      = 1; /* Hardcoded for now */
+    header->hash        = 1; /* Hardcoded for now */
+    header->kdf         = 1; /* Hardcoded for now */
+    header->nshares     = sharecount;
+    header->thresh      = threshold;
+    header->key_size    = key_size;
+    header->hmac_size   = hmac_size;
+    header->share_size  = share_size;
+    header->master_iter = SUBKEY_ITER;
+    header->master_hmac = safe_malloc(hmac_size);
+    header->master_key  = secmem_alloc(header->secmem, key_size);
+    header->shares      = safe_malloc(sharecount * sizeof(share_data_t));
 
     if (iter_ms) {
       iter = pbkdf2_itertime(hash_idx, key_size, iter_ms);
@@ -477,15 +488,15 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         i--; /* Retry this keyslot */
       } else {
         assert(pass_ret == (int)strlen(pass));
-        share_data_t *share = &(header.shares[i]);
+        share_data_t *share = &(header->shares[i]);
         share->iter = MAX(1024, iter ^ (random() & 0x01ff));
-        share->key  = safe_malloc(key_size);
+        share->key  = secmem_alloc(header->secmem, key_size);
         fill_prng(share->salt, salt_size);
         pbkdf2(pass, pass_ret, share->salt, salt_size, share->iter, hash_idx, share->key, &key_size);
-        memset(pass, 0, sizeof(pass));
+        MEMZERO(pass, sizeof(pass));
       }
     }
-    ret = tc_gfsplit(&header);
+    ret = tc_gfsplit(header);
     /* master_key generated and set, shares should be clean */
 
     /* open output file */
@@ -498,34 +509,33 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     } else {
       out_fd = fileno(stdout);
     }
-    write_header(&header, out_fd);
+    write_header(header, out_fd);
     /* encrypt data */
     ssize_t len;
     unsigned char *IV = NULL;
-    assert(header.master_key != NULL);
+    assert(header->master_key != NULL);
     do {
       if ((len = read(in_fd, buf, BUFFER_SIZE)) < 0) {
-        perror("Input file read error: ");
+        perror("Input file read error");
         exit(EXIT_FAILURE);
       }
       unsigned char blklen[4];
       unsigned char blkmac[32];
 
       if ((err = encrypt_block(buf, buf, len,
-                               header.master_key, header.key_size,
-                               blkmac, header.hmac_size, IV)) != THRCR_OK) {
+                               header->master_key, header->key_size,
+                               blkmac, header->hmac_size, IV)) != THRCR_OK) {
         fprintf(stderr, "Error: Failed to encrypt block\n");
-        memset(buf, 0, BUFFER_SIZE);
-        free_header(&header);
+        MEMZERO(buf, BUFFER_SIZE);
         exit(EXIT_FAILURE);
       }
       uint32_t ulen = len;
       STORE32H(ulen, blklen);
-      if ((err = write(out_fd, blklen, 4)                < 4) ||
-          (err = write(out_fd, buf, len)                 < (ssize_t)len) ||
-          (err = write(out_fd, blkmac, header.hmac_size) < (ssize_t)(header.hmac_size))) {
+      if ((err = write(out_fd, blklen, 4)                 < 4) ||
+          (err = write(out_fd, buf, len)                  < (ssize_t)len) ||
+          (err = write(out_fd, blkmac, header->hmac_size) < (ssize_t)(header->hmac_size))) {
         if (err == -1) {
-          perror("Error writing output: ");
+          perror("Error writing output");
         } else {
           fprintf(stderr, "Error: Short write to output\n");
         }
@@ -534,8 +544,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       }
       /* The final block is zero len and acts as an authenticate EoF marker */
     } while (len > 0);
-    memset(buf, 0, BUFFER_SIZE);
-    free_header(&header);
+    MEMZERO(buf, BUFFER_SIZE);
     return ret;
   }
 

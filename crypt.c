@@ -39,8 +39,15 @@ int crypt_data(const unsigned char *data_in,
   int hash_idx = find_hash("sha256");
   size_t data_ckey_size, data_hkey_size;
   data_ckey_size = data_hkey_size = data_mkey_size;
-  unsigned char *data_ckey = safe_malloc(data_mkey_size);
-  unsigned char *data_hkey = safe_malloc(data_mkey_size);
+  unsigned char *subkeys = safe_malloc(data_ckey_size + data_hkey_size);
+#ifdef _POSIX_MEMLOCK_RANGE
+    if (mlock(subkeys, data_ckey_size + data_hkey_size) != 0) {
+      fprintf(stderr, "WARNING: mlock failed at %s:%d - ", __FILE__, __LINE__);
+      perror("");
+    }
+#endif
+  unsigned char *data_ckey = subkeys + 0;
+  unsigned char *data_hkey = subkeys + data_ckey_size;
 
   pbkdf2(data_mkey, data_mkey_size, "H", 1, SUBKEY_ITER, hash_idx, data_hkey, &data_hkey_size);
   pbkdf2(data_mkey, data_mkey_size, "C", 1, SUBKEY_ITER, hash_idx, data_ckey, &data_ckey_size);
@@ -94,8 +101,11 @@ int crypt_data(const unsigned char *data_in,
   /* before returning, make sure key material isn't in memory */
   crypt_data_cleanup:
   ctr_done(&ctr);
-  wipe_free(data_hkey, data_hkey_size);
-  wipe_free(data_ckey, data_ckey_size); 
+  MEMWIPE(subkeys, data_ckey_size + data_hkey_size);
+#ifdef _POSIX_MEMLOCK_RANGE
+  munlock(subkeys, data_ckey_size + data_hkey_size);
+#endif
+  safe_free(subkeys);
   /* save the IV */
   if (IV_start != NULL && *IV_start != NULL) {
     /* fprintf(stderr, "*IV_start = ctr.ctr\n"); */

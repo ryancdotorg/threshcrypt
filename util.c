@@ -11,6 +11,10 @@
 #include <stdint.h>
 #include <string.h>
 
+/* for mlock */
+#include <sys/mman.h>
+#include <limits.h>
+
 #include <tomcrypt.h>
 
 #include "common.h"
@@ -23,7 +27,7 @@ void * safe_malloc(size_t size) {
     fprintf(stderr, "malloc(%d) returned NULL\n", (unsigned int)size);
     exit(EXIT_FAILURE);
   }
-  memset(ptr, 0, size);
+  MEMZERO(ptr, size);
   return ptr;
 }
 
@@ -38,7 +42,7 @@ void _safe_free(void **ptr, const char *file, int line) {
 
 void _wipe_free(void **ptr, size_t size, const char *file, int line) {
   if (*ptr != NULL) {
-    memset(*ptr, 0, size);
+    MEMWIPE(*ptr, size);
     free(*ptr);
     *ptr = NULL;
   } else {
@@ -53,11 +57,87 @@ void memxor(unsigned char *p1, const unsigned char *p2, size_t size) {
   }
 }
 
+void secmem_init(secmem_t *secmem) {
+  assert(secmem != NULL);
+  int pagesize = sysconf(_SC_PAGESIZE);
+  if (secmem->ptr != NULL) {
+    fprintf(stderr, "Warning: Tried to re-initialize secmem\n");
+    return;
+  }
+  /* Set up page aligned memory */
+  secmem->ptr = safe_malloc(SECMEM_SIZE + pagesize); /* we rely on this being zero filled */
+  if ((long)(secmem->ptr) % pagesize == 0) {
+    secmem->off = 0;
+  } else {
+    secmem->off = ((((long)(secmem->ptr) & ~(pagesize-1)) + pagesize) - (long)(secmem->ptr));
+  }
+  secmem->pos = 0;
+  secmem->lck = 0;
+  secmem->len = SECMEM_SIZE;
+  /* fprintf(stderr, "secmem_init: %p + %d\n", secmem->ptr, secmem->off); */
+}
+
+/* There are no corrosponding 'free' or 'realloc' functions. */
+void * secmem_alloc(secmem_t *secmem, size_t size) {
+  assert(secmem != NULL);
+  int pagesize = sysconf(_SC_PAGESIZE);
+  if (secmem->ptr == NULL) {
+    secmem_init(secmem);
+  }
+  void *ptr = secmem->ptr + secmem->off + secmem->pos;
+  /* verify we have enough remaining space for the requested allocation */
+  if ((secmem->pos += size) > secmem->len) {
+    fprintf(stderr, "secmem_alloc: could not allocate %d bytes\n", (unsigned int)size);
+    exit(EXIT_FAILURE);
+  }
+#ifdef _POSIX_MEMLOCK_RANGE
+  while (secmem->pos + size > secmem->lck) {
+    /* fprintf(stderr, "secmem_alloc: locking %d bytes @ %p+0x%04x\n", pagesize, secmem->ptr + secmem->off, secmem->lck); DEBUG */
+    if (mlock(secmem->ptr + secmem->off + secmem->lck, pagesize) != 0) {
+      fprintf(stderr, "secmem_alloc: could not lock %d bytes (%d already locked)\n", pagesize, secmem->lck);
+      perror("");
+    } else {
+      secmem->lck += pagesize;
+    }
+  }
+#endif
+  MEMZERO(ptr, size);
+  /* fprintf(stderr, "secmem_alloc: %p-%p\n", ptr, (char *)ptr + size - 1); */
+  return ptr;
+}
+
+void secmem_wipe(secmem_t *secmem) {
+  assert(secmem != NULL);
+  if (secmem->ptr != NULL) {
+    memset(secmem->ptr + secmem->off, 0x55, secmem->len);
+#ifdef _POSIX_MEMLOCK_RANGE
+    if (secmem->lck > 0) {
+      munlock(secmem->ptr + secmem->off, secmem->lck);
+    }
+#endif
+  }
+  /* reset position markers */
+  secmem->pos = 0;
+  secmem->lck = 0;
+}
+
+void secmem_destroy(secmem_t *secmem) {
+  secmem_wipe(secmem);
+  if (secmem->ptr != NULL) {
+    free(secmem->ptr);
+  }
+  /* clear everything else */
+  secmem->ptr = NULL;
+  secmem->off = 0;
+  secmem->len = 0; 
+}
+
 void fill_rand(unsigned char *buffer,
                unsigned int count) {
   size_t n;
 
 #if defined(LTC_DEVRANDOM) && defined(TRY_URANDOM_FIRST)
+  /* Override libtomcrypt's use of /dev/urandom */
   FILE *devrandom;
   devrandom = fopen("/dev/random", "rb");
   if (!devrandom) {
@@ -89,31 +169,13 @@ void fill_prng(unsigned char *buffer,
   }
 }
 
-/* Free header memory, wiping sensitive parts */
+/* Free header memory */
 void free_header(header_data_t *header) {
-  int i;
-
   if (header != NULL) {
-    if (header->shares != NULL) {
-      /* wipe/free pointers within each share */
-      for (i = 0; i < header->nshares;i++) {
-        share_data_t *share;
-        share = &(header->shares[i]);
-
-        if (share->key != NULL)
-          wipe_free(share->key, header->key_size);
-        if (share->ptxt != NULL)
-          wipe_free(share->ptxt, header->share_size);
-        if (share->ctxt != NULL)
-          safe_free(share->ctxt);
-        if (share->hmac != NULL)
-          safe_free(share->hmac);
-      }
-      /* free memory from shares */
+    if (header->secmem != NULL)
+      secmem_destroy(header->secmem);
+    if (header->shares != NULL)
       safe_free(header->shares);
-    }
-    if (header->master_key != NULL)
-      wipe_free(header->master_key, header->key_size);
     if (header->master_hmac != NULL)
       safe_free(header->master_hmac);
   }
@@ -127,11 +189,10 @@ void wipe_shares(header_data_t *header) {
     for (i = 0; i < header->nshares;i++) {
       share_data_t *share;
       share = &(header->shares[i]);
-
       if (share->key != NULL)
-        wipe_free(share->key, header->key_size);
+        MEMWIPE(share->key, header->key_size);
       if (share->ptxt != NULL)
-        wipe_free(share->ptxt, header->share_size);
+        MEMWIPE(share->ptxt, header->share_size);
     }
   }
 }
