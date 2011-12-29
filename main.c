@@ -450,6 +450,8 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         break;
       }
     } while (dlen > 0);
+    close(in_fd);
+    close(out_fd);
     MEMZERO(buf, BUFFER_SIZE);
     return ret;
   } /* end MODE_DECRYPT */
@@ -544,10 +546,13 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       }
       /* The final block is zero len and acts as an authenticate EoF marker */
     } while (len > 0);
+    close(in_fd);
+    close(out_fd);
     MEMZERO(buf, BUFFER_SIZE);
     return ret;
   }
 
+  close(in_fd);
   return THRCR_ERROR;
 }
 
