@@ -15,12 +15,8 @@ threshcrypt_static: $(OBJECTS)
 	@which upx && upx --best threshcrypt_static || true
 
 threshcrypt_embed: $(OBJECTS)
-<<<<<<< HEAD
-	$(COMPILE) -Os $(OBJECTS) -Wl,-Bstatic $(LIBS) -Wl,-Bdynamic -o threshcrypt_embed
-=======
 	$(COMPILE) $(OBJECTS) -Wl,-Bstatic $(LIBS) -Wl,-Bdynamic -o threshcrypt_embed
 	strip threshcrypt_embed
->>>>>>> deb58a91a682b825fd89ca79621d20adb0d54dec
 
 static: threshcrypt_static
 
