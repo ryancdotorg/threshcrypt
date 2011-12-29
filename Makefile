@@ -16,6 +16,7 @@ threshcrypt_static: $(OBJECTS)
 
 threshcrypt_embed: $(OBJECTS)
 	$(COMPILE) -static $(OBJECTS) -Wl,-Bstatic $(LIBS) -Wl,-Bdynamic -o threshcrypt_embed
+	strip threshcrypt_embed
 
 static: threshcrypt_static
 

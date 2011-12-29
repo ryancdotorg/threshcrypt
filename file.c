@@ -76,8 +76,8 @@ int parse_header(unsigned char *buf, header_data_t *header) {
 int write_header(header_data_t *header, int fd) {
   unsigned char buf[HEADER_SIZE];
 
-  /* zero it - don't want to leak uninitialized memory */
-  memset(buf, 0, HEADER_SIZE);
+  /* zero it - don't want to leak uninitialized memory to disk */
+  MEMZERO(buf, HEADER_SIZE);
 
   /* Identification data */
   memcpy(HDR_MAGIC(buf),        header->magic,       8);

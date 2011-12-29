@@ -44,6 +44,8 @@
 #define THRCR_READERR     9
 #define THRCR_WRITEERR   10
 
+#define THRCR_NOOP       64
+
 /* macro functions */
 #define pbkdf2(p, pl, s, ss, i, h, k, ks) \
         pkcs_5_alg2(p, pl, s, ss, i, h, k, (unsigned long *)ks)
@@ -56,6 +58,13 @@
 #define MAX(a,b) ((a)>(b))?(a):(b)
 #endif
 
+typedef struct {
+  unsigned char *ptr;
+  uint32_t       off;
+  uint32_t       pos;
+  uint32_t       lck;
+  uint32_t       len;
+} secmem_t;
 
 typedef struct {
 	unsigned char *key;  /* SENSITIVE */
@@ -82,7 +91,10 @@ typedef struct {
 	int32_t master_iter;
 	unsigned char master_salt[SALT_SIZE];
 	unsigned char *master_hmac;
-	share_data_t *shares;
+  share_data_t *shares;
+  secmem_t *secmem;
+  unsigned char *tmp_share_key;
+  unsigned char *tmp_share_ptxt;
 } header_data_t;
 
 /* vim: set ts=2 sw=2 et ai si: */
