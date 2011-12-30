@@ -88,5 +88,5 @@ NOTES
 TODO
 
 * Option to use scrypt instead of pbkdf2
-* mlock memory regions that will contain key material before using them
+* mlock sensitivememory regions in libgfshare and libtomcrypt before using them
 * Do user interaction on /dev/tty so that data can be accepted on stdin
