@@ -1,2 +1,2 @@
 bin_PROGRAMS=threshcrypt
-threshcrypt_SOURCES=threshcrypt.c
+threshcrypt_SOURCES=crypt.c file.c main.c shares.c ui.c util.c
