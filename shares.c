@@ -27,8 +27,8 @@ int tc_gfsplit(header_data_t *header) {
   share_data_t *share;
   gfshare_ctx *G;
 
-  assert(header->nshares > 1);
-  assert(header->thresh > 1);
+  assert(header->nshares > 0);
+  assert(header->thresh > 0);
   assert(header->thresh <= header->nshares);
 
   unsigned char *sharenrs = safe_malloc(header->nshares);
@@ -90,13 +90,15 @@ int tc_gfsplit(header_data_t *header) {
     sharenrs[i] = proposed;
   }
 
-  G = gfshare_ctx_init_enc(sharenrs, header->nshares, header->thresh, header->key_size);
-  if ( !G ) {
-    perror("gfshare_ctx_init_enc");
-    return -1;
+  if (header->thresh > 1) {
+    /* TODO mlock this */
+    G = gfshare_ctx_init_enc(sharenrs, header->nshares, header->thresh, header->key_size);
+    if (G == NULL) {
+      perror("gfshare_ctx_init_enc");
+      return -1;
+    }
+    gfshare_ctx_enc_setsecret(G, header->master_key);
   }
-
-  gfshare_ctx_enc_setsecret(G, header->master_key);
 
   for (i = 0; i < header->nshares; i++ ) {
     share = &(header->shares[i]);
@@ -106,7 +108,11 @@ int tc_gfsplit(header_data_t *header) {
     share->hmac = safe_malloc(header->hmac_size);
 
     share->ptxt[0] = sharenrs[i];
-    gfshare_ctx_enc_getshare(G, i, share->ptxt + 1);
+    if (header->thresh == 1) {
+      memcpy(share->ptxt + 1, header->master_key, header->key_size);
+    } else {
+      gfshare_ctx_enc_getshare(G, i, share->ptxt + 1);
+    }
 
 #ifdef CRYPTODEBUG
     fprintf(stderr, "Salt [%02x]: ", i);
@@ -137,6 +143,7 @@ int tc_gfsplit(header_data_t *header) {
 #ifdef CRYPTODEBUG
     fprintf(stderr, "Crypt[%02x]: ", i);
     for (j = 0;j < header->share_size;j++) {
+      
       fprintf(stderr, "%02x", share->ctxt[j]);
     }
     fprintf(stderr, "\n");
@@ -168,7 +175,9 @@ int tc_gfsplit(header_data_t *header) {
   }
 
   /* wipe sensitive data and free memory */
-  gfshare_ctx_free(G);
+  if (header->thresh > 1) {
+    gfshare_ctx_free(G);
+  }
   wipe_free(sharenrs, header->nshares);
   /* header->master_key stays so that it can be used for file encryption */
   return 0;
@@ -222,30 +231,42 @@ int unlock_shares(const unsigned char *pass, size_t pass_len, header_data_t *hea
 
 int tc_gfcombine(header_data_t *header) {
   int i, loaded, err, ret;
-  gfshare_ctx *G;
-  unsigned char sharenrs[256];
-  MEMZERO(sharenrs, sizeof(sharenrs));
-
   err = ret = loaded = 0;
   
-  /* Initialize a gfshare context for decoding */
-  G = gfshare_ctx_init_dec(sharenrs, header->thresh, header->key_size);
-
   assert(header->master_key == NULL);
-
-  for (i = 0; i < header->nshares; i++) {
-    share_data_t *share;
-    share = &(header->shares[i]);
-    if (share->ptxt != NULL) {
-      sharenrs[loaded] = share->ptxt[0];
-      gfshare_ctx_dec_newshares(G, sharenrs);
-      gfshare_ctx_dec_giveshare(G, loaded, share->ptxt + 1);
-      if (++loaded == header->thresh)
-        break;
-    }
-  }
   header->master_key = secmem_alloc(header->secmem, header->key_size);
-  gfshare_ctx_dec_extract(G, header->master_key);
+
+  if (header->thresh == 1) {
+    for (i = 0; i < header->nshares; i++) {
+      share_data_t *share;
+      share = &(header->shares[i]);
+      if (share->ptxt != NULL) {
+        memcpy(header->master_key, share->ptxt + 1, header->key_size);
+        break;
+      }
+    }
+  } else {
+    gfshare_ctx *G;
+    unsigned char sharenrs[256];
+    MEMZERO(sharenrs, sizeof(sharenrs));
+
+    /* Initialize a gfshare context for decoding */
+    G = gfshare_ctx_init_dec(sharenrs, header->thresh, header->key_size);
+
+    for (i = 0; i < header->nshares; i++) {
+      share_data_t *share;
+      share = &(header->shares[i]);
+      if (share->ptxt != NULL) {
+        sharenrs[loaded] = share->ptxt[0];
+        gfshare_ctx_dec_newshares(G, sharenrs);
+        gfshare_ctx_dec_giveshare(G, loaded, share->ptxt + 1);
+        if (++loaded == header->thresh)
+          break;
+      }
+    }
+    gfshare_ctx_dec_extract(G, header->master_key);
+    gfshare_ctx_free(G);
+  }
   return ret;
 }
 

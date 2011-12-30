@@ -44,8 +44,8 @@ int parse_header(unsigned char *buf, header_data_t *header) {
   
   /* Sanity check some critical values */
   if (header->key_size   > MAX_KEY_SIZE   || header->hmac_size > MAX_HMAC_SIZE ||
-      header->share_size > MAX_SHARE_SIZE || header->nshares   <  2 ||
-      header->thresh < 2 || header->thresh > header->nshares)
+      header->share_size > MAX_SHARE_SIZE || header->nshares   <  1 ||
+      header->thresh < 1 || header->thresh > header->nshares)
     return THRCR_BADDATA;
 
   header->master_hmac = safe_malloc(header->hmac_size);

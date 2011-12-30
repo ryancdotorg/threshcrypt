@@ -267,7 +267,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       }
       mode = MODE_ENCRYPT;
       if( *endptr != 0 || *optarg == 0 || 
-          sharecount < 2 || sharecount > 255 ) {
+          sharecount < 1 || sharecount > 255 ) {
         fprintf(stderr, "%s: Invalid argument to option -n (%d)\n", progname, sharecount );
         usage(stderr);
         return 1;
@@ -280,7 +280,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         return 1;
       }
       mode = MODE_ENCRYPT;
-      if( *endptr != 0 || *optarg == 0 || threshold < 2) {
+      if( *endptr != 0 || *optarg == 0 || threshold < 1) {
         fprintf(stderr, "%s: Invalid argument to option -t (%d)\n", progname, threshold );
         usage(stderr);
         return 1;
