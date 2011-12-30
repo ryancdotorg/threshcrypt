@@ -24,7 +24,7 @@ void * safe_malloc(size_t size) {
   void *ptr = malloc(size);
   if (ptr == NULL) {
     perror("malloc");
-    fprintf(stderr, "malloc(%d) returned NULL\n", (unsigned int)size);
+    fprintf(stderr, "malloc(%ud) returned NULL\n", (unsigned int)size);
     exit(EXIT_FAILURE);
   }
   MEMZERO(ptr, size);
