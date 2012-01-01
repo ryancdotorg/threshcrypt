@@ -40,8 +40,8 @@ int hkdf_expand(int hash_idx, const unsigned char *in,   unsigned long inlen,
   unsigned char N;
   unsigned long outoff;
 
-  unsigned char *T;
-  unsigned long Tlen;
+  unsigned char *T,  *dat;
+  unsigned long Tlen, datlen;
 
   if (inlen < hashsize || outlen > hashsize * 255)
     return CRYPT_INVALID_ARG;
@@ -54,33 +54,32 @@ int hkdf_expand(int hash_idx, const unsigned char *in,   unsigned long inlen,
   if (T == NULL) {
     return CRYPT_MEM;
   }
+  XMEMCPY(T + hashsize, info, infolen);
 
-  N = 1;
+  /* HMAC data T(1) doesn't include a previous hash value */
+  dat    = T    + hashsize;
+  datlen = Tlen - hashsize;
+
+  N = 0;
   outoff = 0; /* offset in out to write to */
-  while (outoff < outlen) {
+  while (1) { /* an exit condition breaks mid-loop */
     unsigned long Noutlen = MIN(hashsize, outlen - outoff);
-    T[Tlen - 1] = N;
-    if (N == 1) {
-      XMEMCPY(T + hashsize, info, infolen);
-      /* T(1) doesn't include a previous hash value */ 
-      if ((err = hmac_memory(hash_idx, in, inlen,
-                             T + hashsize, Tlen - hashsize,
-                             out + outoff, &Noutlen)) != CRYPT_OK) {
-        XMEMSET(T, 0, Tlen); /* wipe */
-        XFREE(T);
-        return err;
-      }
-    } else {
-      XMEMCPY(T, out + hashsize * (N-2), hashsize);
-      if ((err = hmac_memory(hash_idx, in, inlen, T, Tlen,
-                             out + outoff, &Noutlen)) != CRYPT_OK) {
-        XMEMSET(T, 0, Tlen); /* wipe */
-        XFREE(T);
-        return err;
-      }
+    T[Tlen - 1] = ++N;
+    if ((err = hmac_memory(hash_idx, in, inlen, dat, datlen,
+                           out + outoff, &Noutlen)) != CRYPT_OK) {
+      XMEMSET(T, 0, Tlen); /* wipe */
+      XFREE(T);
+      return err;
     }
     outoff += Noutlen;
-    N++;
+
+    if (outoff >= outlen) /* loop exit condition */
+      break;
+
+    /* All subsequent HMAC data T(N) DOES include the previous hash value */
+    dat = T;
+    datlen = Tlen;
+    XMEMCPY(T, out + hashsize * (N-1), hashsize);
   }
   XMEMSET(T, 0, Tlen); /* wipe */
   XFREE(T);
