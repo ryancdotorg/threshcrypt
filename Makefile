@@ -18,6 +18,9 @@ threshcrypt_embed: $(OBJECTS)
 	$(COMPILE) $(OBJECTS) -Wl,-Bstatic $(LIBS) -Wl,-Bdynamic -o threshcrypt_embed
 	strip threshcrypt_embed
 
+hkdf_test: hkdf.o hkdf_test.o
+	$(COMPILE) hkdf.o hkdf_test.o -ltomcrypt -o hkdf_test
+
 static: threshcrypt_static
 
 embed: threshcrypt_embed
@@ -27,4 +30,4 @@ extra: threshcrypt threshcrypt_embed threshcrypt_static
 all: threshcrypt
 
 clean:
-	rm -f threshcrypt threshcrypt_* *.o
+	rm -f threshcrypt threshcrypt_* hkdf_test *.o
