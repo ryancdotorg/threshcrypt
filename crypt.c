@@ -10,6 +10,12 @@
 #include <stdint.h>
 #include <string.h>
 
+/* for mlock */
+#include <sys/mman.h>
+#include <limits.h>
+#include <unistd.h>
+
+
 #include <tomcrypt.h>
 
 #include "common.h"
@@ -32,6 +38,12 @@ int crypt_data(const unsigned char *data_in,
   }
 
   symmetric_CTR ctr;
+#ifdef _POSIX_MEMLOCK_RANGE
+  if (mlock(&ctr, sizeof(ctr)) != 0) {
+    fprintf(stderr, "WARNING: mlock failed at %s:%d - ", __FILE__, __LINE__);
+    perror("");
+  }
+#endif
   int err;
   int ret = 0; /* return code */
   unsigned char *IV;
@@ -101,6 +113,7 @@ int crypt_data(const unsigned char *data_in,
   /* before returning, make sure key material isn't in memory */
   crypt_data_cleanup:
   ctr_done(&ctr);
+  MEMWIPE(&ctr, sizeof(ctr));
   MEMWIPE(subkeys, data_ckey_size + data_hkey_size);
 #ifdef _POSIX_MEMLOCK_RANGE
   munlock(subkeys, data_ckey_size + data_hkey_size);

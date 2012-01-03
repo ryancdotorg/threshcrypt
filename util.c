@@ -14,6 +14,7 @@
 /* for mlock */
 #include <sys/mman.h>
 #include <limits.h>
+#include <unistd.h>
 
 #include <tomcrypt.h>
 
