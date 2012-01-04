@@ -103,7 +103,7 @@ int tc_gfsplit(header_data_t *header) {
   for (i = 0; i < header->nshares; i++ ) {
     share = &(header->shares[i]);
     if (share->ptxt == NULL)
-      share->ptxt = secmem_alloc(header->secmem, header->share_size);
+      share->ptxt = keymem_alloc(header->keymem, header->share_size);
     share->ctxt = safe_malloc(header->share_size);
     share->hmac = safe_malloc(header->hmac_size);
 
@@ -187,9 +187,9 @@ int unlock_shares(const unsigned char *pass, size_t pass_len, header_data_t *hea
   int i, err, ret;
   ret = 0;
   if (header->tmp_share_key == NULL)
-    header->tmp_share_key  = secmem_alloc(header->secmem, header->key_size);
+    header->tmp_share_key  = keymem_alloc(header->keymem, header->key_size);
   if (header->tmp_share_ptxt == NULL)
-    header->tmp_share_ptxt  = secmem_alloc(header->secmem, header->share_size);
+    header->tmp_share_ptxt  = keymem_alloc(header->keymem, header->share_size);
 
   for (i = 0; i < header->nshares; i++) {
     share_data_t *share;
@@ -215,7 +215,7 @@ int unlock_shares(const unsigned char *pass, size_t pass_len, header_data_t *hea
                               share->hmac, header->hmac_size)) == 0) {
         fprintf(stderr, "\033[0G\033[2KUnlocked share %d\n", i);
         /* new ptxt region for the next share */
-        header->tmp_share_ptxt  = secmem_alloc(header->secmem, header->share_size);
+        header->tmp_share_ptxt  = keymem_alloc(header->keymem, header->share_size);
         ret++;
       } else {
         MEMWIPE(share->ptxt, header->share_size);
@@ -234,7 +234,7 @@ int tc_gfcombine(header_data_t *header) {
   err = ret = loaded = 0;
   
   assert(header->master_key == NULL);
-  header->master_key = secmem_alloc(header->secmem, header->key_size);
+  header->master_key = keymem_alloc(header->keymem, header->key_size);
 
   if (header->thresh == 1) {
     for (i = 0; i < header->nshares; i++) {

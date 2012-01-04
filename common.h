@@ -64,7 +64,7 @@ typedef struct {
   uint32_t       pos;
   uint32_t       lck;
   uint32_t       len;
-} secmem_t;
+} keymem_t;
 
 typedef struct {
 	unsigned char *key;  /* SENSITIVE */
@@ -92,7 +92,7 @@ typedef struct {
 	unsigned char master_salt[SALT_SIZE];
 	unsigned char *master_hmac;
   share_data_t *shares;
-  secmem_t *secmem;
+  keymem_t *keymem;
   unsigned char *tmp_share_key;
   unsigned char *tmp_share_ptxt;
 } header_data_t;

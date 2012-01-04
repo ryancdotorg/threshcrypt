@@ -38,7 +38,7 @@ prng_state prng;
 
 /* globals so that signal/atexit handlers can get at them */
 static header_data_t *header;
-static secmem_t      *secmem;
+static keymem_t      *keymem;
 
 static void cleanup(void) {
   /* fprintf(stderr, "Freeing header\n"); */
@@ -128,9 +128,9 @@ int main(int argc, char **argv) {
   int ret, err;
   ret = err = 0;
 
-  /* malloc the header and secmem structs */
+  /* malloc the header and keymem structs */
   header = safe_malloc(sizeof(header_data_t));
-  secmem = safe_malloc(sizeof(secmem_t));
+  keymem = safe_malloc(sizeof(keymem_t));
   
   /* make sure key material is wiped on exit */ 
   atexit(cleanup);
@@ -324,8 +324,8 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
   size_t hmac_size = HMAC_SIZE;
   size_t share_size = key_size + 1;
 
-  /* secmem_init(secmem); */
-  header->secmem = secmem;
+  /* keymem_init(keymem); */
+  header->keymem = keymem;
 
   unsigned char pass[256];
   unsigned char prompt[64];
@@ -472,7 +472,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     header->share_size  = share_size;
     header->master_iter = SUBKEY_ITER;
     header->master_hmac = safe_malloc(hmac_size);
-    header->master_key  = secmem_alloc(header->secmem, key_size);
+    header->master_key  = keymem_alloc(header->keymem, key_size);
     header->shares      = safe_malloc(sharecount * sizeof(share_data_t));
 
     if (iter_ms) {
@@ -492,7 +492,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         assert(pass_ret == (int)strlen(pass));
         share_data_t *share = &(header->shares[i]);
         share->iter = MAX(1024, iter ^ (random() & 0x01ff));
-        share->key  = secmem_alloc(header->secmem, key_size);
+        share->key  = keymem_alloc(header->keymem, key_size);
         fill_prng(share->salt, salt_size);
         pbkdf2(pass, pass_ret, share->salt, salt_size, share->iter, hash_idx, share->key, &key_size);
         MEMZERO(pass, sizeof(pass));

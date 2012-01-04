@@ -28,10 +28,10 @@ void fill_prng(unsigned char *, unsigned int);
 void free_header(header_data_t *);
 void wipe_shares(header_data_t *);
 
-void secmem_init(secmem_t *);
-void secmem_wipe(secmem_t *);
-void secmem_destroy(secmem_t *);
-void * secmem_alloc(secmem_t *, size_t);
+void keymem_init(keymem_t *);
+void keymem_wipe(keymem_t *);
+void keymem_destroy(keymem_t *);
+void * keymem_alloc(keymem_t *, size_t);
 
 /* vim: set ts=2 sw=2 et ai si: */
 #endif /* THRESCRYPT_UTIL_H_ */

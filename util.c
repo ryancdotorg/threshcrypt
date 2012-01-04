@@ -58,79 +58,79 @@ void memxor(unsigned char *p1, const unsigned char *p2, size_t size) {
   }
 }
 
-void secmem_init(secmem_t *secmem) {
-  assert(secmem != NULL);
+void keymem_init(keymem_t *keymem) {
+  assert(keymem != NULL);
   int pagesize = sysconf(_SC_PAGESIZE);
-  if (secmem->ptr != NULL) {
-    fprintf(stderr, "Warning: Tried to re-initialize secmem\n");
+  if (keymem->ptr != NULL) {
+    fprintf(stderr, "Warning: Tried to re-initialize keymem\n");
     return;
   }
   /* Set up page aligned memory */
-  secmem->ptr = safe_malloc(SECMEM_SIZE + pagesize); /* we rely on this being zero filled */
-  if ((long)(secmem->ptr) % pagesize == 0) {
-    secmem->off = 0;
+  keymem->ptr = safe_malloc(SECMEM_SIZE + pagesize); /* we rely on this being zero filled */
+  if ((long)(keymem->ptr) % pagesize == 0) {
+    keymem->off = 0;
   } else {
-    secmem->off = ((((long)(secmem->ptr) & ~(pagesize-1)) + pagesize) - (long)(secmem->ptr));
+    keymem->off = ((((long)(keymem->ptr) & ~(pagesize-1)) + pagesize) - (long)(keymem->ptr));
   }
-  secmem->pos = 0;
-  secmem->lck = 0;
-  secmem->len = SECMEM_SIZE;
-  /* fprintf(stderr, "secmem_init: %p + %d\n", secmem->ptr, secmem->off); */
+  keymem->pos = 0;
+  keymem->lck = 0;
+  keymem->len = SECMEM_SIZE;
+  /* fprintf(stderr, "keymem_init: %p + %d\n", keymem->ptr, keymem->off); */
 }
 
 /* There are no corrosponding 'free' or 'realloc' functions. */
-void * secmem_alloc(secmem_t *secmem, size_t size) {
-  assert(secmem != NULL);
+void * keymem_alloc(keymem_t *keymem, size_t size) {
+  assert(keymem != NULL);
   int pagesize = sysconf(_SC_PAGESIZE);
-  if (secmem->ptr == NULL) {
-    secmem_init(secmem);
+  if (keymem->ptr == NULL) {
+    keymem_init(keymem);
   }
-  void *ptr = secmem->ptr + secmem->off + secmem->pos;
+  void *ptr = keymem->ptr + keymem->off + keymem->pos;
   /* verify we have enough remaining space for the requested allocation */
-  if ((secmem->pos += size) > secmem->len) {
-    fprintf(stderr, "secmem_alloc: could not allocate %d bytes\n", (unsigned int)size);
+  if ((keymem->pos += size) > keymem->len) {
+    fprintf(stderr, "keymem_alloc: could not allocate %d bytes\n", (unsigned int)size);
     exit(EXIT_FAILURE);
   }
 #ifdef _POSIX_MEMLOCK_RANGE
-  while (secmem->pos + size > secmem->lck) {
-    /* fprintf(stderr, "secmem_alloc: locking %d bytes @ %p+0x%04x\n", pagesize, secmem->ptr + secmem->off, secmem->lck); DEBUG */
-    if (mlock(secmem->ptr + secmem->off + secmem->lck, pagesize) != 0) {
-      fprintf(stderr, "secmem_alloc: could not lock %d bytes (%d already locked)\n", pagesize, secmem->lck);
+  while (keymem->pos + size > keymem->lck) {
+    /* fprintf(stderr, "keymem_alloc: locking %d bytes @ %p+0x%04x\n", pagesize, keymem->ptr + keymem->off, keymem->lck); DEBUG */
+    if (mlock(keymem->ptr + keymem->off + keymem->lck, pagesize) != 0) {
+      fprintf(stderr, "keymem_alloc: could not lock %d bytes (%d already locked)\n", pagesize, keymem->lck);
       perror("");
     } else {
-      secmem->lck += pagesize;
+      keymem->lck += pagesize;
     }
   }
 #endif
   MEMZERO(ptr, size);
-  /* fprintf(stderr, "secmem_alloc: %p-%p\n", ptr, (char *)ptr + size - 1); */
+  /* fprintf(stderr, "keymem_alloc: %p-%p\n", ptr, (char *)ptr + size - 1); */
   return ptr;
 }
 
-void secmem_wipe(secmem_t *secmem) {
-  assert(secmem != NULL);
-  if (secmem->ptr != NULL) {
-    memset(secmem->ptr + secmem->off, 0x55, secmem->len);
+void keymem_wipe(keymem_t *keymem) {
+  assert(keymem != NULL);
+  if (keymem->ptr != NULL) {
+    memset(keymem->ptr + keymem->off, 0x55, keymem->len);
 #ifdef _POSIX_MEMLOCK_RANGE
-    if (secmem->lck > 0) {
-      munlock(secmem->ptr + secmem->off, secmem->lck);
+    if (keymem->lck > 0) {
+      munlock(keymem->ptr + keymem->off, keymem->lck);
     }
 #endif
   }
   /* reset position markers */
-  secmem->pos = 0;
-  secmem->lck = 0;
+  keymem->pos = 0;
+  keymem->lck = 0;
 }
 
-void secmem_destroy(secmem_t *secmem) {
-  secmem_wipe(secmem);
-  if (secmem->ptr != NULL) {
-    free(secmem->ptr);
+void keymem_destroy(keymem_t *keymem) {
+  keymem_wipe(keymem);
+  if (keymem->ptr != NULL) {
+    free(keymem->ptr);
   }
   /* clear everything else */
-  secmem->ptr = NULL;
-  secmem->off = 0;
-  secmem->len = 0; 
+  keymem->ptr = NULL;
+  keymem->off = 0;
+  keymem->len = 0; 
 }
 
 void fill_rand(unsigned char *buffer,
@@ -173,8 +173,8 @@ void fill_prng(unsigned char *buffer,
 /* Free header memory */
 void free_header(header_data_t *header) {
   if (header != NULL) {
-    if (header->secmem != NULL)
-      secmem_destroy(header->secmem);
+    if (header->keymem != NULL)
+      keymem_destroy(header->keymem);
     if (header->shares != NULL)
       safe_free(header->shares);
     if (header->master_hmac != NULL)
