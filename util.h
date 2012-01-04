@@ -7,7 +7,7 @@
 #ifndef THRESCRYPT_UTIL_H_
 #define THRESCRYPT_UTIL_H_
 
-#define SECMEM_SIZE 49152 /* 48kb */
+#define KEYMEM_SIZE 49152 /* 48kb */
 
 void * safe_malloc(size_t);
 

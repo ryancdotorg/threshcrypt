@@ -66,7 +66,7 @@ void keymem_init(keymem_t *keymem) {
     return;
   }
   /* Set up page aligned memory */
-  keymem->ptr = safe_malloc(SECMEM_SIZE + pagesize); /* we rely on this being zero filled */
+  keymem->ptr = safe_malloc(KEYMEM_SIZE + pagesize); /* we rely on this being zero filled */
   if ((long)(keymem->ptr) % pagesize == 0) {
     keymem->off = 0;
   } else {
@@ -74,7 +74,7 @@ void keymem_init(keymem_t *keymem) {
   }
   keymem->pos = 0;
   keymem->lck = 0;
-  keymem->len = SECMEM_SIZE;
+  keymem->len = KEYMEM_SIZE;
   /* fprintf(stderr, "keymem_init: %p + %d\n", keymem->ptr, keymem->off); */
 }
 
