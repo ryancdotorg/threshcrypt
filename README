@@ -87,6 +87,15 @@ NOTES
 
 TODO
 
-* Option to use scrypt instead of pbkdf2
+* add support for other KDFs besides pbkdf2 and add scrypt
+* implement locked_malloc/unlock_free and use it for libgfshare and libtomcrypt
+  structs
+  - should page align and round up size to whole pages to ensure freeing has no
+    side effects
+* copy code from crypt_data to ctr_hmac_block which will take a ctr sturct as
+  an argument.
+  - wrap with ctr_hmac_dec_block and ctr_hmac_enc_block macros
+  - convert crypt_data to a wrapper for the above
+* implement ctr_hmac_fd wrapped by ctr_hmac_dec_fd and ctr_hmac_enc_fd
 * mlock sensitivememory regions in libgfshare and libtomcrypt before using them
-* Do user interaction on /dev/tty so that data can be accepted on stdin
+* do user interaction on /dev/tty so that data can be accepted on stdin
