@@ -128,6 +128,12 @@ int main(int argc, char **argv) {
   int ret, err;
   ret = err = 0;
 
+/*  sleep(1);
+  unsigned char *sec_test = sec_malloc(4097);
+  fprintf(stderr, "\n");
+  sleep(1);
+  sec_free(sec_test);
+  sleep(1); */
   /* malloc the header and keymem structs */
   header = safe_malloc(sizeof(header_data_t));
   keymem = safe_malloc(sizeof(keymem_t));
@@ -183,6 +189,12 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
   /* end tomcrypt algorithm registration */
+
+#ifndef _POSIX_MEMLOCK_RANGE
+  fprintf(stderr, "\
+Warning: Unable to lock virtual memory on this system, sensitive key data may\n\
+         be paged out to disk.\n");
+#endif
 
   /* Set the prng for gfshare */
   gfshare_fill_rand = fill_prng;

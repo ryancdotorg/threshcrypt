@@ -35,30 +35,26 @@ int save_term(struct termios *termios_p) {
   return 0;
 }
 
+#define get_pass_return(ret) i = ret; goto get_pass_return;
+
 int get_pass(char *pass, uint8_t pass_size, const char *prompt,
              const char *vprompt, const char *rprompt, int verify) {
   struct termios old_term, new_term;
   uint8_t i, j;
   int chr;
-  char *vpass = safe_malloc(pass_size + sizeof(char));
-#ifdef _POSIX_MEMLOCK_RANGE
-  if (mlock(vpass, pass_size) != 0) {
-    fprintf(stderr, "WARNING: mlock failed at %s:%d - ", __FILE__, __LINE__);
-    perror("");
-  }
-#endif
+  char *vpass = sec_malloc(pass_size + sizeof(char));
 
   assert(pass_size > 1);
   do {
     if (save_term(&old_term) != 0) {
-      return -1;
+      get_pass_return(-1);
     }
     new_term = old_term;
     fprintf(stderr, "%s", prompt);
     /* Turn off echo */
     new_term.c_lflag &= ~ECHO;
     if (load_term(&new_term) != 0) {
-      return -1;
+      get_pass_return(-1);
     }
 
     i = 0;
@@ -77,37 +73,34 @@ int get_pass(char *pass, uint8_t pass_size, const char *prompt,
     }
     /* restore echo */
     if (load_term(&old_term) != 0) {
-      return -1;
+      get_pass_return(-1);
     }
     if (vprompt != NULL) {
       fprintf(stderr, "\033[0G\033[2K");
       j = get_pass(vpass, pass_size, vprompt, NULL, NULL, 0);
       if (j != i || memcmp(pass, vpass, i) != 0) {
         MEMZERO(vpass, pass_size);
-#ifdef _POSIX_MEMLOCK_RANGE
-        munlock(vpass, pass_size);
-#endif
         MEMZERO(pass, pass_size);
         if (verify > 1) {
           fprintf(stderr, "%s\n", rprompt);
           verify--;
         } else {
-          return -1;
+          get_pass_return(-1);
         }
       } else {
         MEMZERO(vpass, pass_size);
-#ifdef _POSIX_MEMLOCK_RANGE
-        munlock(vpass, pass_size);
-#endif
         assert(i == j);
         assert(i == strlen(pass));
-        return i;
+        get_pass_return(i);
       }
     } else {
       break;
     }
   } while (verify > 0);
   fprintf(stderr, "\n");
+
+  get_pass_return:
+  sec_free(vpass);
   return i;
 }
 /* vim: set ts=2 sw=2 et ai si: */

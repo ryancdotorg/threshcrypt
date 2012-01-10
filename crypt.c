@@ -22,6 +22,8 @@
 #include "util.h"
 #include "crypt.h"
 
+#define crypt_data_return(r) ret = r; goto crypt_data_return;
+
 /* XXX */
 /* IF YOU CALL THIS MULTIPLE TIMES WITH THE SAME KEY YOU MUST PROVIDE AN IV POINTER! */
 int crypt_data(const unsigned char *data_in,
@@ -47,7 +49,7 @@ int crypt_data(const unsigned char *data_in,
   int err;
   int ret = 0; /* return code */
   unsigned char *IV;
-  size_t IV_size = 16;
+  unsigned long  IV_size = 16;
   int hash_idx = find_hash("sha256");
   size_t data_ckey_size, data_hkey_size;
   data_ckey_size = data_hkey_size = data_mkey_size;
@@ -84,7 +86,7 @@ int crypt_data(const unsigned char *data_in,
                             data_hkey, data_hkey_size,
                             data_in, data_size, data_chk_hmac,
                             (long unsigned int *)&data_hmac_size)) != CRYPT_OK) {
-      ret = THRCR_BADMAC; goto crypt_data_cleanup;
+     crypt_data_return(THRCR_BADMAC);
     }
   }
 
@@ -92,13 +94,13 @@ int crypt_data(const unsigned char *data_in,
   if ((err = ctr_start(find_cipher("aes"), IV, data_ckey, data_ckey_size, 0,
                        CTR_COUNTER_BIG_ENDIAN | LTC_CTR_RFC3686, &ctr)) != CRYPT_OK) {
     fprintf(stderr, "Error initializing cipher: %d\n", err);
-    ret = -1; goto crypt_data_cleanup;
+    crypt_data_return(-1);
   }
 
   /* ctr_encrypt is used for both encryption and decryption */
   if ((err = ctr_encrypt(data_in, data_out, data_size, &ctr)) != CRYPT_OK) {
     fprintf(stderr, "ctr_encrypt error: %s\n", error_to_string(err));
-    ret = -1; goto crypt_data_cleanup;
+    crypt_data_return(-1);
   }
   if (mode == MODE_ENCRYPT && data_new_hmac != NULL) {
     if ((err = hmac_memory(hash_idx,
@@ -106,12 +108,12 @@ int crypt_data(const unsigned char *data_in,
                            data_out, data_size, data_new_hmac,
                            (long unsigned int *)&data_hmac_size)) != CRYPT_OK) {
       fprintf(stderr, "hmac error: %s\n", error_to_string(err)); 
-      ret = -1; goto crypt_data_cleanup;
+      crypt_data_return(-1);
     }
   }
 
-  /* before returning, make sure key material isn't in memory */
-  crypt_data_cleanup:
+  crypt_data_return:
+  /* before actually returning, make sure key material isn't in memory */
   ctr_done(&ctr);
   MEMWIPE(&ctr, sizeof(ctr));
   MEMWIPE(subkeys, data_ckey_size + data_hkey_size);

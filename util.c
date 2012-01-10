@@ -58,8 +58,89 @@ void memxor(unsigned char *p1, const unsigned char *p2, size_t size) {
   }
 }
 
+/* for passwords and external libary structs */
+void * sec_malloc(size_t size) {
+  assert(sizeof(long) >= sizeof(void *));
+  int pagesize      = sysconf(_SC_PAGESIZE);
+  int metadata_size = sizeof(void *) + sizeof(size_t);
+
+  /* pad size up to an increment of pagesize if needed */
+  if (size % pagesize != 0)
+    size = (size + pagesize) & ~(pagesize-1);
+
+  void    *main_ptr = safe_malloc(metadata_size + size + pagesize);
+  void    *data_ptr = (void *)((long)main_ptr + metadata_size);
+  size_t  *size_ptr;
+  void   **base_ptr;
+
+  /* check if it's already aligned */
+  if ((long)(data_ptr) % pagesize != 0)
+    /* move up data_ptr to the next page boundry */
+    data_ptr = (void *)((((long)(data_ptr) & ~(pagesize-1)) + pagesize));
+
+#ifdef _POSIX_MEMLOCK_RANGE
+  if (mlock(data_ptr, size) != 0) {
+    fprintf(stderr, "sec_malloc: could not lock %zu bytes\n", size);
+    perror("");
+  }
+#endif
+
+  /* save the locked memory size so we can wipe it later */
+  size_ptr  = (void *)((long)data_ptr - sizeof(size_t));
+  *size_ptr = size;
+  /* save the base pointer so we can free it later */
+  base_ptr  = (void *)((long)data_ptr - metadata_size);
+  *base_ptr = main_ptr;
+
+/*fprintf(stderr, " main_ptr: %p\n", main_ptr);
+  fprintf(stderr, " data_ptr: %p\n", data_ptr);
+  fprintf(stderr, " size_ptr: %p\n", (void *)size_ptr);
+  fprintf(stderr, " base_ptr: %p\n", (void *)base_ptr);
+  fprintf(stderr, "*base_ptr: %p\n", *base_ptr);
+  fprintf(stderr, "*size_ptr: %zu\n", *size_ptr);
+  fprintf(stderr, " size:     %zu\n", size);*/
+  return data_ptr;
+}
+
+void _sec_free(void ** data_ptr) {
+  assert(sizeof(long) >= sizeof(void *));
+  assert(data_ptr != NULL);
+  if (*data_ptr == NULL) {
+    fprintf(stderr, "Warning: attempted double _sec_free\n");
+    return;
+  }
+
+  int metadata_size = sizeof(void *) + sizeof(size_t);
+
+  void  **base_ptr;
+  size_t *size_ptr;
+
+  /* load the locked allocation size */
+  size_ptr = (void *)((long)*data_ptr - sizeof(size_t));
+  /* load the base pointer */
+  base_ptr = (void *)((long)*data_ptr - metadata_size);
+
+/*fprintf(stderr, " data_ptr: %p\n", *data_ptr);
+  fprintf(stderr, " size_ptr: %p\n", (void *)size_ptr);
+  fprintf(stderr, " base_ptr: %p\n", (void *)base_ptr);
+  fprintf(stderr, "*base_ptr: %p\n", *base_ptr);
+  fprintf(stderr, "*size_ptr: %zu\n", *size_ptr);*/
+  
+  MEMWIPE(*data_ptr, *size_ptr);
+  *data_ptr = NULL;
+
+  if (*base_ptr != NULL) {
+    free(*base_ptr);
+    *base_ptr = NULL;
+  } else {
+    fprintf(stderr, "Fatal: attempted partial double _sec_free\n");
+    exit(EXIT_FAILURE);
+  }
+}
+
 void keymem_init(keymem_t *keymem) {
   assert(keymem != NULL);
+  assert(sizeof(long) == sizeof(void *));
   int pagesize = sysconf(_SC_PAGESIZE);
   if (keymem->ptr != NULL) {
     fprintf(stderr, "Warning: Tried to re-initialize keymem\n");

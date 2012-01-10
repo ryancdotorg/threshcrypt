@@ -43,6 +43,7 @@ int hkdf_expand(int hash_idx, const unsigned char *in,   unsigned long inlen,
   unsigned char *T,  *dat;
   unsigned long Tlen, datlen;
 
+  /* RFC5869 parameter restrictions */
   if (inlen < hashsize || outlen > hashsize * 255)
     return CRYPT_INVALID_ARG;
   if (info == NULL && infolen != 0)
@@ -50,7 +51,7 @@ int hkdf_expand(int hash_idx, const unsigned char *in,   unsigned long inlen,
   assert(out != NULL);
 
   Tlen = hashsize + infolen + 1;
-  T = XMALLOC(Tlen);
+  T = XMALLOC(Tlen); /* Replace with static buffer? */
   if (T == NULL) {
     return CRYPT_MEM;
   }
@@ -93,7 +94,7 @@ int hkdf(int hash_idx, const unsigned char *salt, unsigned long saltlen,
                              unsigned char *out,  unsigned long outlen) {
   unsigned long hashsize = hash_descriptor[hash_idx].hashsize;
   int err;
-  unsigned char *extracted = XMALLOC(hashsize);
+  unsigned char *extracted = XMALLOC(hashsize); /* replace with static buffer? */
   if (extracted == NULL) {
     return CRYPT_MEM;
   }

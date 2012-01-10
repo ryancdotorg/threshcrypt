@@ -33,5 +33,9 @@ void keymem_wipe(keymem_t *);
 void keymem_destroy(keymem_t *);
 void * keymem_alloc(keymem_t *, size_t);
 
+void * sec_malloc(size_t);
+#define sec_free(ptr) _sec_free((void **) &ptr)
+void _sec_free(void **);
+
 /* vim: set ts=2 sw=2 et ai si: */
 #endif /* THRESCRYPT_UTIL_H_ */
