@@ -14,7 +14,6 @@
 int hkdf_extract(int hash_idx, const unsigned char *salt, unsigned long  saltlen,
                                const unsigned char *in,   unsigned long  inlen,
                                      unsigned char *out,  unsigned long *outlen) {
-  int ret;
   /* libtomcrypt chokes on a zero length HMAC key, so we need to check for
      that.  HMAC specifies that keys shorter than the hash's blocksize are
      0 padded to the block size.  HKDF specifies that a NULL salt is to be
@@ -23,13 +22,12 @@ int hkdf_extract(int hash_idx, const unsigned char *salt, unsigned long  saltlen
      zero filled key.  Unless blocksize < hashLen (which wouldn't make any
      sense), we can use a single 0 byte as the HMAC key and still generate
      valid results for HKDF. */
+  /* if (((long)salt & saltlen) == 0) { <- would save a few instructions */
   if (salt == NULL || saltlen == 0) {
-    saltlen = hash_descriptor[hash_idx].hashsize;
-    ret = hmac_memory(hash_idx, "",   1,       in, inlen, out, outlen); 
+    return hmac_memory(hash_idx, "",   1,       in, inlen, out, outlen); 
   } else {
-    ret = hmac_memory(hash_idx, salt, saltlen, in, inlen, out, outlen);
+    return hmac_memory(hash_idx, salt, saltlen, in, inlen, out, outlen);
   }
-  return ret;
 }
 
 int hkdf_expand(int hash_idx, const unsigned char *in,   unsigned long inlen,
