@@ -28,6 +28,7 @@ void print_hex(const unsigned char * ptr, size_t len, size_t width) {
   printf(" (%d octets)\n", (int)len);
 }
 
+/* This can leak memory */
 unsigned char * hexstrstr(const char * hexstr) {
   int len = strlen(hexstr);
   assert(len % 2 == 0);
@@ -291,6 +292,23 @@ int main() {
     printf("Test Case 7: OKAY\n");
   } else {
     printf("Test Case 7: FAIL\n");
+    ret = 1;
+  }
+  
+  printf("Test Case 8\n");
+  if (test_hkdf("sha1",
+          hexstrstr("0c0c0c0c0c0c0c0c0c0c0c0c0c"
+                    "0c0c0c0c0c0c0c0c0c"), 22,
+                    NULL, 0,
+                    "", 0,
+          hexstrstr("2adccada18779e7c2077ad2eb19d3f3e"
+                    "731385dd"), 20,
+          hexstrstr("2c91117204d745f3500d636a62f64f0a"
+                    "b3bae548aa53d423b0d1f27ebba6f5e5"
+                    "673a081d70cce7acfc48"), 1) == 0) {
+    printf("Test Case 8: OKAY\n");
+  } else {
+    printf("Test Case 8: FAIL\n");
     ret = 1;
   }
 

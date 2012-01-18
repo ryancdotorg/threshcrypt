@@ -36,7 +36,7 @@ int hkdf_expand(int hash_idx, const unsigned char *in,   unsigned long inlen,
   const unsigned long hashsize = hash_descriptor[hash_idx].hashsize;
   int err;
   unsigned char N;
-  unsigned long outoff;
+  unsigned long Noutlen, outoff;
 
   unsigned char *T,  *dat;
   unsigned long Tlen, datlen;
@@ -62,7 +62,7 @@ int hkdf_expand(int hash_idx, const unsigned char *in,   unsigned long inlen,
   N = 0;
   outoff = 0; /* offset in out to write to */
   while (1) { /* an exit condition breaks mid-loop */
-    unsigned long Noutlen = MIN(hashsize, outlen - outoff);
+    Noutlen = MIN(hashsize, outlen - outoff);
     T[Tlen - 1] = ++N;
     if ((err = hmac_memory(hash_idx, in, inlen, dat, datlen,
                            out + outoff, &Noutlen)) != CRYPT_OK) {
@@ -76,9 +76,11 @@ int hkdf_expand(int hash_idx, const unsigned char *in,   unsigned long inlen,
       break;
 
     /* All subsequent HMAC data T(N) DOES include the previous hash value */
-    dat = T;
-    datlen = Tlen;
     XMEMCPY(T, out + hashsize * (N-1), hashsize);
+    if (N == 1) {
+      dat = T;
+      datlen = Tlen;
+    }
   }
   XMEMSET(T, 0, Tlen); /* wipe */
   XFREE(T);
