@@ -130,8 +130,11 @@ void _sec_free(void ** data_ptr) {
   *data_ptr = NULL;
 
   if (*base_ptr != NULL) {
-    free(*base_ptr);
+    void *tmp_ptr = *base_ptr;
+    /* We could clear *base_ptr after the free to save a few instructions, but
+       doing that makes memory checkers angry */
     *base_ptr = NULL;
+    free(tmp_ptr);
   } else {
     fprintf(stderr, "Fatal: attempted partial double _sec_free\n");
     exit(EXIT_FAILURE);
@@ -211,7 +214,7 @@ void keymem_destroy(keymem_t *keymem) {
   /* clear everything else */
   keymem->ptr = NULL;
   keymem->off = 0;
-  keymem->len = 0; 
+  keymem->len = 0;
 }
 
 void fill_rand(unsigned char *buffer,
@@ -234,8 +237,10 @@ void fill_rand(unsigned char *buffer,
     n = fread(buffer, 1, count, devrandom);
     if (n < count) {
       perror("Short read from /dev/random");
+      fclose(devrandom);
       exit(EXIT_FAILURE);
     }
+    fclose(devrandom);
   }
 #endif
 }
@@ -254,13 +259,26 @@ void fill_prng(unsigned char *buffer,
 /* Free header memory */
 void free_header(header_data_t *header) {
   if (header != NULL) {
-    if (header->keymem != NULL)
+    if (header->keymem != NULL) {
       keymem_destroy(header->keymem);
-    if (header->shares != NULL)
+      safe_free(header->keymem);
+    }
+    if (header->shares != NULL) {
+      int i;
+      for (i = 0; i < header->nshares;i++) {
+        share_data_t *share;
+        share = &(header->shares[i]);
+        if (share->ctxt != NULL)
+          safe_free(share->ctxt);
+        if (share->hmac != NULL)
+          safe_free(share->hmac);
+      }
       safe_free(header->shares);
+    }
     if (header->master_hmac != NULL)
       safe_free(header->master_hmac);
   }
+  safe_free(header);
 }
 
 void wipe_shares(header_data_t *header) {

@@ -100,21 +100,23 @@ int crypt_data(const unsigned char *data_in,
   /* ctr_encrypt is used for both encryption and decryption */
   if ((err = ctr_encrypt(data_in, data_out, data_size, &ctr)) != CRYPT_OK) {
     fprintf(stderr, "ctr_encrypt error: %s\n", error_to_string(err));
+    ctr_done(&ctr); /* done with cipher, clean up keys */
     crypt_data_return(-1);
   }
+  ctr_done(&ctr); /* done with cipher, clean up keys */
+
   if (mode == MODE_ENCRYPT && data_new_hmac != NULL) {
     if ((err = hmac_memory(hash_idx,
                            data_hkey, data_hkey_size,
                            data_out, data_size, data_new_hmac,
                            (long unsigned int *)&data_hmac_size)) != CRYPT_OK) {
-      fprintf(stderr, "hmac error: %s\n", error_to_string(err)); 
+      fprintf(stderr, "hmac error: %s\n", error_to_string(err));
       crypt_data_return(-1);
     }
   }
 
   crypt_data_return:
   /* before actually returning, make sure key material isn't in memory */
-  ctr_done(&ctr);
   MEMWIPE(&ctr, sizeof(ctr));
   MEMWIPE(subkeys, data_ckey_size + data_hkey_size);
 #ifdef _POSIX_MEMLOCK_RANGE

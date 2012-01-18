@@ -464,6 +464,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     } while (dlen > 0);
     close(in_fd);
     close(out_fd);
+    safe_free(IV);
     MEMZERO(buf, BUFFER_SIZE);
     return ret;
   } /* end MODE_DECRYPT */
@@ -560,6 +561,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     } while (len > 0);
     close(in_fd);
     close(out_fd);
+    safe_free(IV);
     MEMZERO(buf, BUFFER_SIZE);
     return ret;
   }

@@ -209,13 +209,13 @@ int unlock_shares(const unsigned char *pass, size_t pass_len, header_data_t *hea
         /* on an hmac failure (wrong password) */
         MEMWIPE(share->key, header->key_size);
         continue;
-      } 
+      }
       if ((err = decrypt_data(share->ctxt, share->ptxt, header->share_size,
                               share->key,  header->key_size,
                               share->hmac, header->hmac_size)) == 0) {
         fprintf(stderr, "\033[0G\033[2KUnlocked share %d\n", i);
         /* new ptxt region for the next share */
-        header->tmp_share_ptxt  = keymem_alloc(header->keymem, header->share_size);
+        header->tmp_share_ptxt = keymem_alloc(header->keymem, header->share_size);
         ret++;
       } else {
         MEMWIPE(share->ptxt, header->share_size);
