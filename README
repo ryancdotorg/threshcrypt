@@ -24,8 +24,6 @@ See main.c for other options until I update this file.
 
 NOTES
 
-* Decryption routines still need to be implemented.
-
 * This is *ALPHA* software. No attempt will be made to maintain file format
   backwards compatibility until a beta relase.
 
@@ -46,9 +44,9 @@ NOTES
     Once all the share keys have been generated, a random master key is
     generated, using the share keys as an additional entropy source (this
     helps if your RNG/PRNG is poor quality).  The master key is then
-    cryptographicly checksumed and split into a series of shares using
-    Shamir's secret sharing.  Each share is encrypted with the corresponding
-    share key and then zeroed in memory.
+    MAC'd and split into a series of shares using Shamir's secret sharing.
+    Each share is encrypted with the corresponding share key and then zeroed
+    in memory.
 
     Finally, the plaintext is read in chunks which are then encrypted and MAC'd
     to prevent the data from being read/tampered with.
@@ -87,7 +85,7 @@ NOTES
 
 TODO
 
-* add support for other KDFs besides pbkdf2 and add scrypt
+* add support for other KDFs besides pbkdf2, starting with scrypt
 * implement locked_malloc/unlock_free and use it for libgfshare and libtomcrypt
   structs
   - should page align and round up size to whole pages to ensure freeing has no
@@ -97,5 +95,5 @@ TODO
   - wrap with ctr_hmac_dec_block and ctr_hmac_enc_block macros
   - convert crypt_data to a wrapper for the above
 * implement ctr_hmac_fd wrapped by ctr_hmac_dec_fd and ctr_hmac_enc_fd
-* mlock sensitivememory regions in libgfshare and libtomcrypt before using them
+* mlock sensitive memory regions in libgfshare and libtomcrypt before using them
 * do user interaction on /dev/tty so that data can be accepted on stdin
