@@ -51,7 +51,7 @@ void gen_sharenrs(unsigned char *sharenrs, unsigned char n) {
 
 int tc_gfsplit(header_data_t *header) {
   int err;
-  unsigned int i, j;  
+  unsigned int i;
   share_data_t *share;
   gfshare_ctx *G;
 
@@ -99,9 +99,8 @@ int tc_gfsplit(header_data_t *header) {
   fprintf(stderr, "\n\n");
 #endif
 
-  gen_sharenrs(sharenrs, header->nshares);
-
   if (header->thresh > 1) {
+    gen_sharenrs(sharenrs, header->nshares);
     /* TODO mlock this */
     G = gfshare_ctx_init_enc(sharenrs, header->nshares, header->thresh, header->key_size);
     /* G->buffer could be free'd and reinitialized with size G->buffersize - wrapper? */
