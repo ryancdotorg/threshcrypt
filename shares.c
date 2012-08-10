@@ -101,7 +101,7 @@ int tc_gfsplit(header_data_t *header) {
 
   if (header->thresh > 1) {
     gen_sharenrs(sharenrs, header->nshares);
-    /* TODO mlock this */
+    /* TODO figure out how to mlock G's memory */
     G = gfshare_ctx_init_enc(sharenrs, header->nshares, header->thresh, header->key_size);
     /* G->buffer could be free'd and reinitialized with size G->buffersize - wrapper? */
     if (G == NULL) {
