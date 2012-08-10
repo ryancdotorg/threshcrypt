@@ -56,6 +56,7 @@ static int pbkdf2_itertime(int hash_idx, size_t size, int msec) {
   struct timeval time1;
   struct timeval time2;
 
+  /* salt and pass values don't matter */
   unsigned char *salt = "Your mother was a hamster...";
   unsigned char *pass = "...and your father smelt of elderberries!";
   unsigned char *buf  = safe_malloc(size);
@@ -93,8 +94,8 @@ Where options are:\n\
   -h    show this screen (all other options ignored)\n\
   -V    print version infomation (all other options ignored)\n\
 \n\
-  -d    do decryption (default if no options specified)\n\
-  -e    do encryption (default if any of the following options are set)\n\
+  -d    decrypt (default if no options specified)\n\
+  -e    encrypt (default if any other options are set)\n\
 \n\
   -n    total number of passwords to enter\n\
   -t    minimum number of passwords that will be required to decrypt\n\
@@ -144,8 +145,8 @@ int main(int argc, char **argv) {
   /* set up signal handlers */
   save_term(&orig_term_set);
   /* catch some signals we can */
-  signal(SIGINT, sig_handle);
-  signal(SIGHUP, sig_handle);
+  signal(SIGINT,  sig_handle);
+  signal(SIGHUP,  sig_handle);
   signal(SIGUSR1, sig_handle);
   signal(SIGUSR2, sig_handle);
   signal(SIGTERM, sig_handle);
@@ -153,7 +154,7 @@ int main(int argc, char **argv) {
   signal(SIGABRT, sig_handle);
 
   progname = argv[0];
-  /* Seed the PRNG with */
+  /* Seed the PRNG */
   srandom( time(NULL) ^ (getpid() << (sizeof(int) * 4)) );
 
   /* Setup fortuna PRNG */
@@ -231,7 +232,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       break;
     case 'i':
       if (mode == MODE_DECRYPT) {
-        fprintf(stderr, "%s: Conflicting mode option -i, mode set to decrypt by previous option\n", progname);
+        fprintf(stderr, "%s: Conflicting option -i, mode set to decrypt by previous option\n", progname);
         return 1;
       }
       mode = MODE_ENCRYPT;
@@ -245,7 +246,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
       break;
     case 'm':
       if (mode == MODE_DECRYPT) {
-        fprintf(stderr, "%s: Conflicting mode option -i, mode set to decrypt by previous option\n", progname);
+        fprintf(stderr, "%s: Conflicting option -m, mode set to decrypt by previous option\n", progname);
         return 1;
       }
       iter_ms = strtoul(optarg, &endptr, 10);
@@ -260,7 +261,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     case 'b':
       key_bits = strtoul( optarg, &endptr, 10 );
       if (mode == MODE_DECRYPT) {
-        fprintf(stderr, "%s: Conflicting mode option -b, mode set to decrypt by previous option\n", progname);
+        fprintf(stderr, "%s: Conflicting option -b, mode set to decrypt by previous option\n", progname);
         return 1;
       }
       mode = MODE_ENCRYPT;
@@ -274,7 +275,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     case 'n':
       sharecount = strtoul( optarg, &endptr, 10 );
       if (mode == MODE_DECRYPT) {
-        fprintf(stderr, "%s: Conflicting mode option -n, mode set to decrypt by previous option\n", progname);
+        fprintf(stderr, "%s: Conflicting option -n, mode set to decrypt by previous option\n", progname);
         return 1;
       }
       mode = MODE_ENCRYPT;
@@ -288,7 +289,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     case 't':
       threshold = strtoul( optarg, &endptr, 10 );
       if (mode == MODE_DECRYPT) {
-        fprintf(stderr, "%s: Conflicting mode option -t, mode set to decrypt by previous option\n", progname);
+        fprintf(stderr, "%s: Conflicting option -t, mode set to decrypt by previous option\n", progname);
         return 1;
       }
       mode = MODE_ENCRYPT;
@@ -302,7 +303,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
   }
 
   if (threshold > sharecount) {
-    fprintf(stderr, "%s: argument to -m must not be smaller than argument to -n\n", progname);
+    fprintf(stderr, "%s: argument to -n must not be smaller than argument to -t\n", progname);
     usage(stderr);
     return 1;
   }
