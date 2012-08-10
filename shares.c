@@ -21,6 +21,34 @@
 #include "shares.h"
 #include "crypt.h"
 
+/* put n random non-zero uchars into *sharenrs with no duplicates */
+void gen_sharenrs(unsigned char *sharenrs, unsigned char n) {
+  int i;
+  unsigned int  r;
+  unsigned char t;
+  unsigned char buf[255];
+
+  for (i = 0; i < 255; i++) buf[i] = i + 1;
+
+  while(i > 0) {
+    do {
+      fill_prng((unsigned char *)&r, sizeof(r));
+    } while (r > (UINT_MAX - (UINT_MAX % i) - 1)); /* avoids bias */
+    r %= i--;
+
+    t = buf[i];
+    buf[i] = buf[r];
+    buf[r] = t;
+  }
+  
+  assert(i == 0);
+
+  while (i < n) {
+    sharenrs[i] = buf[i];
+    i++;
+  }
+}
+
 int tc_gfsplit(header_data_t *header) {
   int err;
   unsigned int i, j;  
@@ -71,28 +99,12 @@ int tc_gfsplit(header_data_t *header) {
   fprintf(stderr, "\n\n");
 #endif
 
-  /* This is carry-over from the gfsplit example program.
-     I don't know why sequential share numbers are not used. */
-  for (i = 0; i < header->nshares; i++ ) {
-    /* TODO switch to a proper shuffle algorighm */
-    unsigned char proposed = (random() & 0xff00) >> 8;
-    if( proposed == 0 ) {
-      proposed = 1;
-    }
-    SHARENR_TRY_AGAIN:
-    for( j = 0; j < i; ++j ) {
-      if( sharenrs[j] == proposed ) {
-        proposed++;
-        if( proposed == 0 ) proposed = 1;
-        goto SHARENR_TRY_AGAIN;
-      }
-    }
-    sharenrs[i] = proposed;
-  }
+  gen_sharenrs(sharenrs, header->nshares);
 
   if (header->thresh > 1) {
     /* TODO mlock this */
     G = gfshare_ctx_init_enc(sharenrs, header->nshares, header->thresh, header->key_size);
+    /* G->buffer could be free'd and reinitialized with size G->buffersize - wrapper? */
     if (G == NULL) {
       perror("gfshare_ctx_init_enc");
       return -1;

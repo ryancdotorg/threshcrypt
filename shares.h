@@ -7,6 +7,8 @@
 #ifndef THRESHCRYPT_SHARES_H_
 #define THRESHCRYPT_SHARES_H_
 
+void gen_sharenrs(unsigned char *, unsigned char);
+
 int tc_gfsplit(header_data_t *);
 int tc_gfcombine(header_data_t *);
 int unlock_shares(const unsigned char *, size_t, header_data_t *); 
