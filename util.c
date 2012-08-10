@@ -32,6 +32,7 @@ void * safe_malloc(size_t size) {
   return ptr;
 }
 
+/* util.h: #define safe_free(ptr) _safe_free((void **) &ptr, __FILE__, __LINE__) */
 void _safe_free(void **ptr, const char *file, int line) {
   if (*ptr != NULL) {
     free(*ptr);
@@ -41,6 +42,7 @@ void _safe_free(void **ptr, const char *file, int line) {
   }
 }
 
+/* util.h: #define wipe_free(ptr, size) _wipe_free((void **) &ptr, size, __FILE__, __LINE__) */
 void _wipe_free(void **ptr, size_t size, const char *file, int line) {
   if (*ptr != NULL) {
     MEMWIPE(*ptr, size);
@@ -58,7 +60,7 @@ void memxor(unsigned char *p1, const unsigned char *p2, size_t size) {
   }
 }
 
-/* for passwords and external libary structs */
+/* for non-key secret data - can be freed */
 void * sec_malloc(size_t size) {
   assert(sizeof(long) >= sizeof(void *));
   int pagesize      = sysconf(_SC_PAGESIZE);
@@ -78,6 +80,7 @@ void * sec_malloc(size_t size) {
     /* move up data_ptr to the next page boundry */
     data_ptr = (void *)((((long)(data_ptr) & ~(pagesize-1)) + pagesize));
 
+/* prevent swapping of this memory if possible */
 #ifdef _POSIX_MEMLOCK_RANGE
   if (mlock(data_ptr, size) != 0) {
     fprintf(stderr, "sec_malloc: could not lock %zu bytes\n", size);
@@ -102,6 +105,7 @@ void * sec_malloc(size_t size) {
   return data_ptr;
 }
 
+/* util.h: #define sec_free(ptr) _sec_free((void **) &ptr) */
 void _sec_free(void ** data_ptr) {
   assert(sizeof(long) >= sizeof(void *));
   assert(data_ptr != NULL);
