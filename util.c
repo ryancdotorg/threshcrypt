@@ -131,6 +131,12 @@ void _sec_free(void ** data_ptr) {
   fprintf(stderr, "*size_ptr: %zu\n", *size_ptr);*/
   
   MEMWIPE(*data_ptr, *size_ptr);
+#ifdef _POSIX_MEMLOCK_RANGE
+  if (munlock(*data_ptr, *size_ptr) != 0) {
+    fprintf(stderr, "_sec_free: could not unlock %zu bytes\n", *size_ptr);
+    perror("");
+  }
+#endif
   *data_ptr = NULL;
 
   if (*base_ptr != NULL) {
