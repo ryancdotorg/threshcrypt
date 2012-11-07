@@ -53,7 +53,7 @@ int tc_gfsplit(header_data_t *header) {
   int err;
   unsigned int i;
   share_data_t *share;
-  gfshare_ctx *G;
+  gfshare_ctx *G = NULL;
 
   assert(header->nshares > 0);
   assert(header->thresh > 0);
