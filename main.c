@@ -387,7 +387,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         if ((unlock_ret = unlock_shares(pass, pass_ret, header))){
           unlocked += unlock_ret;
         }
-        MEMZERO(pass, sizeof(pass));
+        MEMWIPE(pass, sizeof(pass));
       }
     }
     fprintf(stderr, "Decrypting data...\n");
@@ -466,7 +466,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     close(in_fd);
     close(out_fd);
     safe_free(IV);
-    MEMZERO(buf, BUFFER_SIZE);
+    MEMWIPE(buf, BUFFER_SIZE);
     return ret;
   } /* end MODE_DECRYPT */
 
@@ -509,7 +509,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
         share->key  = keymem_alloc(header->keymem, key_size);
         fill_prng(share->salt, salt_size);
         pbkdf2(pass, pass_ret, share->salt, salt_size, share->iter, hash_idx, share->key, &key_size);
-        MEMZERO(pass, sizeof(pass));
+        MEMWIPE(pass, sizeof(pass));
       }
     }
     ret = tc_gfsplit(header);
@@ -542,7 +542,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
                                header->master_key, header->key_size,
                                blkmac, header->hmac_size, IV)) != THRCR_OK) {
         fprintf(stderr, "Error: Failed to encrypt block\n");
-        MEMZERO(buf, BUFFER_SIZE);
+        MEMWIPE(buf, BUFFER_SIZE);
         exit(EXIT_FAILURE);
       }
       uint32_t ulen = len;
@@ -563,7 +563,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
     close(in_fd);
     close(out_fd);
     safe_free(IV);
-    MEMZERO(buf, BUFFER_SIZE);
+    MEMWIPE(buf, BUFFER_SIZE);
     return ret;
   }
 

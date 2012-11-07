@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <errno.h>
 
 /* for mlock */
 #include <sys/mman.h>
@@ -31,6 +32,22 @@ void * safe_malloc(size_t size) {
   MEMZERO(ptr, size);
   return ptr;
 }
+
+/* from CMU CERT MSC06-C */
+#ifndef HAS_MEMSET_S
+int memset_s(void *v, size_t smax, int c, size_t n) {
+  if (v == NULL) return EINVAL;
+  if (smax > SIZE_MAX) return EINVAL;
+  if (n > smax) return EINVAL;
+
+  volatile unsigned char *p = v;
+  while (smax-- && n--) {
+    *p++ = c;
+  }
+
+  return 0;
+}
+#endif
 
 /* util.h: #define safe_free(ptr) _safe_free((void **) &ptr, __FILE__, __LINE__) */
 void _safe_free(void **ptr, const char *file, int line) {
@@ -204,7 +221,7 @@ void * keymem_alloc(keymem_t *keymem, size_t size) {
 void keymem_wipe(keymem_t *keymem) {
   assert(keymem != NULL);
   if (keymem->ptr != NULL) {
-    memset(keymem->ptr + keymem->off, 0x55, keymem->len);
+    MEMWIPE(keymem->ptr + keymem->off, keymem->len);
 #ifdef _POSIX_MEMLOCK_RANGE
     if (keymem->lck > 0) {
       munlock(keymem->ptr + keymem->off, keymem->lck);

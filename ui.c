@@ -79,8 +79,8 @@ int get_pass(char *pass, uint8_t pass_size, const char *prompt,
       fprintf(stderr, "\033[0G\033[2K");
       j = get_pass(vpass, pass_size, vprompt, NULL, NULL, 0);
       if (j != i || memcmp(pass, vpass, i) != 0) {
-        MEMZERO(vpass, pass_size);
-        MEMZERO(pass, pass_size);
+        MEMWIPE(vpass, pass_size);
+        MEMWIPE(pass, pass_size);
         if (verify > 1) {
           fprintf(stderr, "%s\n", rprompt);
           verify--;
@@ -88,7 +88,7 @@ int get_pass(char *pass, uint8_t pass_size, const char *prompt,
           get_pass_return(-1);
         }
       } else {
-        MEMZERO(vpass, pass_size);
+        MEMWIPE(vpass, pass_size);
         assert(i == j);
         assert(i == strlen(pass));
         get_pass_return(i);

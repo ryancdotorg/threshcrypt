@@ -11,13 +11,21 @@
 
 void * safe_malloc(size_t);
 
+#ifndef HAS_MEMSET_S
+int memset_s(void *, size_t, int, size_t);
+#endif
+
 #define safe_free(ptr) _safe_free((void **) &ptr, __FILE__, __LINE__)
 void _safe_free(void **, const char *, int);
 
 #define wipe_free(ptr, size) _wipe_free((void **) &ptr, size, __FILE__, __LINE__)
 void _wipe_free(void **, size_t, const char *, int);
 
-#define MEMWIPE(p, s) memset(p, 0x33, s)
+/* security critical memory wipe */
+#define MEMWIPE(p, s)      memset_s(p, s, 0x33, s)
+#define MEMWIPE_V(p, s, v) memset_s(p, s, v, s)
+
+/* non-security memory zero */
 #define MEMZERO(p, s) memset(p, 0, s)
 
 void memxor(unsigned char *, const unsigned char *, size_t);
