@@ -1,0 +1,66 @@
+Note, most of these will need a thcr_ctx arg
+
+thcr_init()
+thcr_save()
+thcr_open(ifile)
+thcr_decrypt(ofile)
+thcr_encrypt(ifile, ofile)
+thcr_verify(ifile)
+
+thcr_get_shareid_by_name(name)
+
+thcr_share_unlock(password, shareid)
+thcr_share_add(password, shareid, weight)
+thcr_share_modify(password, shareid, weight)
+thcr_share_delete(password, shareid)
+
+thcr_set_theshold(n) (#def subthreshold w/ shareid 0)
+thcr_set_subthreshold(shareid, n)
+thcr_set_comment(string)
+thcr_set_option(option, value)
+
+thcr_get_threshold() (#dev subthreshold w/ shareid 0)
+thcr_get_subthreshold(shareid)
+thcr_get_comment()
+thcr_get_option(option)
+
+Options
+=======
+cipher
+cipher mode
+
+kdf
+kdf work factor
+
+hash
+
+allow share modification (encrypt derived share key with master key)
+hidden threshold
+
+Packets
+=======
+uint8 type, uint16 length, varible width data
+uint8 type, fixed width data
+
+Header
+======
+Magic
+Comment
+Options (packets)
+Shares (packets):
+    plaintext[shareid(16 bit), subthresh, name(may be null), weight, salt], 
+    encrypted{share key{e}}[parent_shareid(0 for none), sharenr, share] x weight,
+    encrypted{parent key}[share key] (if share modification allowed),
+    mac{share key{m}, salt}[hash(identifier), weight, encrypted{share key{e}}
+
+Header checksum
+Header signature
+
+Other stuff:
+* A threshold value of 0 means 'attempt to compute group/master key after
+  each share is unlocked'
+
+* A pseudoshare with shareid 0 is the 'root' share which holds the master key
+  instead of a share
+
+* 'real' shares should use a random shareid.
